@@ -8,9 +8,7 @@ import (
 func AuthRoutes(router *gin.Engine) {
 	router.GET("/", controllers.WelcomePage)
 
-	router.POST("/add", controllers.AddToDo)
-
-	router.POST("/toggle", controllers.Toggle)
+	router.POST("/addNewMeal", controllers.AddNewMeal)
 
 	router.POST("/login", controllers.Login)
 
