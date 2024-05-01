@@ -6,8 +6,6 @@
     <title>Canteen Management System</title>
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
-    <!-- Your custom CSS file -->
-    <link rel="stylesheet" href="styles.css">
     <style>
         body {
             margin: 0;
@@ -41,6 +39,11 @@
         }
         .logout-button:hover {
             background-color: #ff0000;
+        }
+        .right-items {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
         .menu-items {
             display: grid;
@@ -91,11 +94,6 @@
             font-size: 20px;
             color: black;
         }
-        .right-items {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
 
     </style>
 </head>
@@ -104,7 +102,7 @@
         <div class="left-items">
             <a href="/categories"><i class="fas fa-bars"></i> Categories</a>
             <a href="/search"><i class="fas fa-search"></i> Search</a>
-            <label><i class="fas fa-user"></i> {{ .Username }}</label>
+            <label><i class="fas fa-user"></i> {{ .LoggedInUser.Username }}</label>
         </div>
         <div class="center-item home-button">
             <a href="/home"><img src="/assets/logo-white.png"
@@ -125,7 +123,7 @@
             <h3>{{.StrMeal}}</h3>
             <p style="color: gray;font-size: 14px;margin-top: 5px;">{{.StrCategory}}</p>
             <p class="menu-item-price">{{.Price}}₸</p>
-            <button>Add to cart</button>
+            <button class="add-to-cart-button" data-product-id="{{.IDMeal}}">Add to cart</button>
         </div>
         {{end}}
     </div>
@@ -146,12 +144,48 @@
             })
             .then(data => {
                 if (data.success) {
-                    window.location.href = '/';
+                    window.location.href = '/login.html';
                 } else {
                     console.error('Failed to logout');
                 }
             })
             .catch(error => console.error('Error:', error));
     });
+    document.addEventListener("DOMContentLoaded", function() {
+        var addToCartButtons = document.querySelectorAll(".add-to-cart-button");
+        var loggedInUserID = parseInt("{{ .LoggedInUser.ID }}");
+
+        addToCartButtons.forEach(function(button) {
+            button.addEventListener("click", function() {
+                var productID = button.getAttribute("data-product-id");
+
+                var data = [{
+                    user_id: loggedInUserID,
+                    product_id: productID,
+                    quantity: 1
+                }];
+
+                fetch("/cart/add", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(data)
+                })
+                    .then(response => response.json())
+                    .then(result => {
+                        if (result.success) {
+                            alert("Product added to cart");
+                        } else {
+                            alert("Error adding product to cart: " + result.error);
+                        }
+                    })
+                    .catch(error => {
+                        console.error("Error adding product to cart:", error);
+                    });
+            });
+        });
+    });
+
 </script>
 </html>

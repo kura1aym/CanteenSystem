@@ -4,12 +4,12 @@ import (
 	"canteenSystem/controllers"
 	"canteenSystem/models"
 	"canteenSystem/routes"
-	"github.com/gin-gonic/gin"
-	"net/http"
 	"fmt"
-	"log"
-	"os"
+	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"log"
+	"net/http"
+	"os"
 )
 
 func main() {

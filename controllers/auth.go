@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -16,22 +15,9 @@ import (
 	"gorm.io/gorm"
 )
 
-var todos []models.Todo
 var loggedInUser models.User
 var jwtKey = []byte("my_secret_key")
 var allMeals []models.Meal
-
-func WelcomePage(c *gin.Context) {
-	fmt.Println("loggedInUser.ID + ", loggedInUser.ID)
-	fmt.Println("loggedInUser.Role + ", loggedInUser.Role)
-	fmt.Println("LoggedIn + ", loggedInUser.ID != 0)
-	c.HTML(http.StatusOK, "index.html", gin.H{
-		"Todos":    todos,
-		"LoggedIn": loggedInUser.ID != 0,
-		"Username": loggedInUser.Username,
-		"Role":     loggedInUser.Role,
-	})
-}
 
 func Register(c *gin.Context) {
 	var user models.User
@@ -125,51 +111,11 @@ func Login(c *gin.Context) {
 	c.Redirect(http.StatusSeeOther, "/home")
 }
 
-func AddToDo(c *gin.Context) {
-	fmt.Println("YOU ARE IN ADDTODO")
-	var todo models.Todo
-
-	if err := c.ShouldBindJSON(&todo); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
-		return
-	}
-
-	todo.UserID = int(loggedInUser.ID)
-	fmt.Println("Added task ", todo)
-	fmt.Println("Added task ", loggedInUser.ID)
-
-	if err := models.DB.Create(&todo).Error; err != nil {
-		c.JSON(500, gin.H{"error": "could not create todo"})
-		return
-	}
-
-	fmt.Println("Added task ", todo)
-
-	todos = append(todos, todo)
-
-	fmt.Println("Added tasks ", todos)
-	c.JSON(http.StatusOK, gin.H{"message": "Task added successfully", "todo": todo})
-}
-
-func Toggle(c *gin.Context) {
-	index := c.PostForm("index")
-	toggleIndex(index)
-	c.Redirect(http.StatusSeeOther, "/")
-}
-
 func Logout(c *gin.Context) {
 	loggedInUser = models.User{}
-	fmt.Println("YOU ARE HERELOGOUT", loggedInUser)
 	c.SetCookie("token", "", -1, "/", "localhost", false, true)
 	c.JSON(200, gin.H{"success": "user logged out"})
-	c.Redirect(http.StatusSeeOther, "/")
-}
-
-func toggleIndex(index string) {
-	i, _ := strconv.Atoi(index)
-	if i >= 0 && i < len(todos) {
-		todos[i].Done = !todos[i].Done
-	}
+	c.Redirect(http.StatusSeeOther, "login.html")
 }
 
 func HomePage(c *gin.Context) {
@@ -179,8 +125,8 @@ func HomePage(c *gin.Context) {
 		return
 	}
 	c.HTML(http.StatusOK, "home.html", gin.H{
-		"MenuItems": meals,
-		"Username":  loggedInUser.Username,
+		"MenuItems":    meals,
+		"LoggedInUser": loggedInUser,
 	})
 }
 
@@ -197,7 +143,7 @@ func generateRandomPrice(min, max int) (int, error) {
 
 func GetMenuData() ([]models.Meal, error) {
 	urls := []string{
-		"https://themealdb.p.rapidapi.com/search.php?f=c",
+		"https://www.themealdb.com/api/json/v1/1/search.php?f=c",
 		// "https://themealdb.p.rapidapi.com/search.php?f=e",
 		// "https://themealdb.p.rapidapi.com/search.php?f=b",
 	}
@@ -207,8 +153,6 @@ func GetMenuData() ([]models.Meal, error) {
 		if err != nil {
 			return nil, err
 		}
-		req.Header.Add("X-RapidAPI-Key", "f4269533cemshc241dafc079c688p1e6f04jsnd66e347907f3")
-		req.Header.Add("X-RapidAPI-Host", "themealdb.p.rapidapi.com")
 
 		client := &http.Client{}
 		resp, err := client.Do(req)
@@ -227,6 +171,18 @@ func GetMenuData() ([]models.Meal, error) {
 			mealsResp.Meals = mealsResp.Meals[:10]
 		}
 
+		for _, meal := range mealsResp.Meals {
+			var existingMeal models.Meal
+			err := models.DB.Where("id_meal = ?", meal.IDMeal).First(&existingMeal).Error
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				if err := models.DB.Create(&meal).Error; err != nil {
+					return nil, fmt.Errorf("could not add meal to database: %w", err)
+				}
+			} else if err != nil {
+				return nil, fmt.Errorf("database error: %w", err)
+			}
+		}
+
 		allMeals = append(allMeals, mealsResp.Meals...)
 	}
 
@@ -236,11 +192,28 @@ func GetMenuData() ([]models.Meal, error) {
 
 func assignPrice() []models.Meal {
 	for i := range allMeals {
-		price, err := generateRandomPrice(1500, 3500)
-		if err != nil {
-			return nil
+		var existingMeal models.Meal
+		err := models.DB.Where("id_meal = ?", allMeals[i].IDMeal).First(&existingMeal).Error
+		if err == nil {
+			allMeals[i].Price = existingMeal.Price
+		} else if errors.Is(err, gorm.ErrRecordNotFound) {
+			price, err := generateRandomPrice(1500, 3500)
+			if err != nil {
+				fmt.Println("Error generating price:", err)
+				continue
+			}
+			allMeals[i].Price = price
+
+			allMeals[i].Price = price
+			existingMeal = allMeals[i]
+			if err := models.DB.Create(&existingMeal).Error; err != nil {
+				fmt.Println("Error saving meal to database:", err)
+				continue
+			}
+		} else {
+			fmt.Println("Error querying database:", err)
+			continue
 		}
-		allMeals[i].Price = price
 	}
 	return allMeals
 }
@@ -262,14 +235,11 @@ func Categories(c *gin.Context) {
 }
 
 func GetCategories() ([]models.Category, error) {
-
-	url := "https://themealdb.p.rapidapi.com/categories.php"
+	url := "https://www.themealdb.com/api/json/v1/1/categories.php"
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Add("X-RapidAPI-Key", "f4269533cemshc241dafc079c688p1e6f04jsnd66e347907f3")
-	req.Header.Add("X-RapidAPI-Host", "themealdb.p.rapidapi.com")
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -293,4 +263,82 @@ func GetCategories() ([]models.Category, error) {
 	}
 
 	return categories, nil
+}
+
+func Cart(c *gin.Context) {
+	userID := loggedInUser.ID
+
+	cartItems, err := GetCartItems(userID)
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Error fetching cart data: %v", err)
+		return
+	}
+
+	totalCost := 0
+	for _, item := range cartItems {
+		totalCost += item.TotalPrice
+	}
+
+	c.HTML(http.StatusOK, "cart.html", gin.H{
+		"CartItems":    cartItems,
+		"TotalCost":    totalCost,
+		"LoggedInUser": loggedInUser,
+	})
+}
+
+func GetCartItems(userID uint) ([]models.CartItem, error) {
+	var cartItems []models.CartItem
+	if err := models.DB.Where("user_id = ?", userID).Find(&cartItems).Error; err != nil {
+		return nil, err
+	}
+	return cartItems, nil
+}
+
+func AddToCart(c *gin.Context) {
+	var cartItems []models.CartItem
+	if err := c.ShouldBindJSON(&cartItems); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	for i, cartItem := range cartItems {
+		err := models.DB.Where("id_meal = ?", cartItem.ProductID).First(&cartItem.Product).Error
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+			return
+		}
+
+		cartItems[i] = cartItem
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": "added to cart", "cart_items": cartItems})
+}
+
+func AddNewMeal(c *gin.Context) {
+	fmt.Println("YOU ARE IN ADDTOMENU")
+	var meal models.Meal
+
+	if err := c.ShouldBindJSON(&meal); err != nil {
+		c.JSON(400, gin.H{"error binding meal": err.Error()})
+		return
+	}
+
+	result := models.DB.Where("StrMeal = ?", meal.StrMeal).First(&meal)
+	if result.Error != nil && result.Error != gorm.ErrRecordNotFound {
+		c.JSON(400, gin.H{"Error querying meal:": result.Error})
+	}
+	if result.Error == gorm.ErrRecordNotFound {
+		if err := models.DB.Create(&meal).Error; err != nil {
+			c.JSON(500, gin.H{"error": "could not create meal"})
+			return
+		}
+		fmt.Println("Meal created successfully")
+	} else {
+		fmt.Println("Meal already exists")
+	}
+
+	allMeals = append(allMeals, meal)
+
+	c.JSON(http.StatusOK, gin.H{"message": "Meal added successfully", "allMeals": meal})
+
 }
