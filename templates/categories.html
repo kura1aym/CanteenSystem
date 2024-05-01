@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Home</title>
+    <title>Canteen Management System</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
     <style>
         body {
@@ -88,7 +88,13 @@
             font-size: 20px;
             color: black;
         }
-        
+
+        .right-items {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
     </style>
 </head>
 <body>
@@ -96,6 +102,7 @@
         <div class="left-items">
             <a href="/categories"><i class="fas fa-bars"></i> Categories</a>
             <a href="/search"><i class="fas fa-search"></i> Search</a>
+            <label><i class="fas fa-user"></i> {{ .Username }}</label>
         </div>
         <div class="center-item home-button">
             <a href="/home"><img src="/assets/logo-white.png"
@@ -103,7 +110,9 @@
         </div>
         <div class="right-items">
             <a href="/cart"><i class="fas fa-shopping-cart"></i> Cart</a>
-            <button class="logout-button"><i class="fas fa-sign-out-alt"></i> Logout</button>
+            <form id="logoutForm" enctype="application/x-www-form-urlencoded">
+                <button class="logout-button" type="submit"><i class="fas fa-sign-out-alt"></i> Logout</button>
+            </form>
         </div>
     </div>
 
@@ -117,4 +126,29 @@
         {{end}}
     </div>
 </body>
+<script>
+    document.getElementById('logoutForm').addEventListener('submit', function(event) {
+        event.preventDefault(); // Prevent the default form submission
+
+        console.log('Submitting logout form...');
+        fetch('/logout', {
+            method: 'GET',
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Logout failed');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    window.location.href = '/';
+                } else {
+                    console.error('Failed to logout');
+                }
+            })
+            .catch(error => console.error('Error:', error));
+    });
+</script>
+
 </html>

@@ -20,6 +20,7 @@ var todos []models.Todo
 var loggedInUser models.User
 var jwtKey = []byte("my_secret_key")
 var allMeals []models.Meal
+
 func WelcomePage(c *gin.Context) {
 	fmt.Println("loggedInUser.ID + ", loggedInUser.ID)
 	fmt.Println("loggedInUser.Role + ", loggedInUser.Role)
@@ -179,6 +180,7 @@ func HomePage(c *gin.Context) {
 	}
 	c.HTML(http.StatusOK, "home.html", gin.H{
 		"MenuItems": meals,
+		"Username":  loggedInUser.Username,
 	})
 }
 
@@ -213,7 +215,7 @@ func GetMenuData() ([]models.Meal, error) {
 		if err != nil {
 			return nil, err
 		}
-		
+
 		defer resp.Body.Close()
 
 		var mealsResp MealsResponse
@@ -232,7 +234,7 @@ func GetMenuData() ([]models.Meal, error) {
 	return allMeals, nil
 }
 
-func assignPrice() []models.Meal{
+func assignPrice() []models.Meal {
 	for i := range allMeals {
 		price, err := generateRandomPrice(1500, 3500)
 		if err != nil {
@@ -255,11 +257,12 @@ func Categories(c *gin.Context) {
 	}
 	c.HTML(http.StatusOK, "categories.html", gin.H{
 		"Categories": categories,
+		"Username":   loggedInUser.Username,
 	})
 }
 
 func GetCategories() ([]models.Category, error) {
-	
+
 	url := "https://themealdb.p.rapidapi.com/categories.php"
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -281,13 +284,13 @@ func GetCategories() ([]models.Category, error) {
 	}
 	var categories []models.Category
 	for _, cat := range categoriesResp.Categories {
-        if cat.IdCategory == "2" || cat.IdCategory == "3" || cat.IdCategory == "13" {
-            categories = append(categories, cat)
-        }
-    }
+		if cat.IdCategory == "2" || cat.IdCategory == "3" || cat.IdCategory == "13" {
+			categories = append(categories, cat)
+		}
+	}
 	for _, cat := range categories {
-       fmt.Println(cat)
-    } 
+		fmt.Println(cat)
+	}
 
 	return categories, nil
 }
