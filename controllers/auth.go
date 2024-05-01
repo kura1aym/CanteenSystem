@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -16,7 +15,6 @@ import (
 	"gorm.io/gorm"
 )
 
-var todos []models.Todo
 var loggedInUser models.User
 var jwtKey = []byte("my_secret_key")
 var allMeals []models.Meal
@@ -26,7 +24,6 @@ func WelcomePage(c *gin.Context) {
 	fmt.Println("loggedInUser.Role + ", loggedInUser.Role)
 	fmt.Println("LoggedIn + ", loggedInUser.ID != 0)
 	c.HTML(http.StatusOK, "index.html", gin.H{
-		"Todos":    todos,
 		"LoggedIn": loggedInUser.ID != 0,
 		"Username": loggedInUser.Username,
 		"Role":     loggedInUser.Role,
@@ -125,38 +122,6 @@ func Login(c *gin.Context) {
 	c.Redirect(http.StatusSeeOther, "/home")
 }
 
-func AddToDo(c *gin.Context) {
-	fmt.Println("YOU ARE IN ADDTODO")
-	var todo models.Todo
-
-	if err := c.ShouldBindJSON(&todo); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
-		return
-	}
-
-	todo.UserID = int(loggedInUser.ID)
-	fmt.Println("Added task ", todo)
-	fmt.Println("Added task ", loggedInUser.ID)
-
-	if err := models.DB.Create(&todo).Error; err != nil {
-		c.JSON(500, gin.H{"error": "could not create todo"})
-		return
-	}
-
-	fmt.Println("Added task ", todo)
-
-	todos = append(todos, todo)
-
-	fmt.Println("Added tasks ", todos)
-	c.JSON(http.StatusOK, gin.H{"message": "Task added successfully", "todo": todo})
-}
-
-func Toggle(c *gin.Context) {
-	index := c.PostForm("index")
-	toggleIndex(index)
-	c.Redirect(http.StatusSeeOther, "/")
-}
-
 func Logout(c *gin.Context) {
 	loggedInUser = models.User{}
 	fmt.Println("YOU ARE HERELOGOUT", loggedInUser)
@@ -165,12 +130,6 @@ func Logout(c *gin.Context) {
 	c.Redirect(http.StatusSeeOther, "/")
 }
 
-func toggleIndex(index string) {
-	i, _ := strconv.Atoi(index)
-	if i >= 0 && i < len(todos) {
-		todos[i].Done = !todos[i].Done
-	}
-}
 
 func HomePage(c *gin.Context) {
 	meals, err := GetMenuData()
@@ -293,4 +252,33 @@ func GetCategories() ([]models.Category, error) {
 	}
 
 	return categories, nil
+}
+
+func AddNewMeal(c *gin.Context){
+	fmt.Println("YOU ARE IN ADDTOMENU")
+	var meal models.Meal
+
+	if err := c.ShouldBindJSON(&meal); err != nil {
+		c.JSON(400, gin.H{"error binding meal": err.Error()})
+		return
+	}
+
+	result := models.DB.Where("StrMeal = ?", meal.StrMeal).First(&meal)
+	if result.Error != nil && result.Error != gorm.ErrRecordNotFound {
+		c.JSON(400, gin.H{"Error querying meal:": result.Error})
+	}
+	if result.Error == gorm.ErrRecordNotFound {
+		if err := models.DB.Create(&meal).Error; err != nil {
+			c.JSON(500, gin.H{"error": "could not create meal"})
+			return
+		}
+		fmt.Println("Meal created successfully")
+	} else {
+		fmt.Println("Meal already exists")
+	}
+
+	allMeals = append(allMeals, meal)
+
+	c.JSON(http.StatusOK, gin.H{"message": "Meal added successfully", "allMeals": meal})
+
 }
