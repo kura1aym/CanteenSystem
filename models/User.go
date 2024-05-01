@@ -6,5 +6,4 @@ type User struct {
 	Email    string
 	Password string
 	Role     string
-	Todos    []Todo
 }

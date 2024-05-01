@@ -86,9 +86,6 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	fmt.Printf("Login loggedInUser: %+v\n", loggedInUser)
-	fmt.Printf("Login user: %+v\n", user)
-
 	expirationTime := time.Now().Add(5 * time.Minute)
 
 	claims := &models.Claims{
@@ -277,20 +274,29 @@ func Cart(c *gin.Context) {
 	}
 
 	totalCost := 0
+	foodItems := 0
 	for _, item := range cartItems {
 		totalCost += item.TotalPrice
+		foodItems += item.Quantity
 	}
+
+	cartEmpty := len(cartItems) == 0
 
 	c.HTML(http.StatusOK, "cart.html", gin.H{
 		"CartItems":    cartItems,
 		"TotalCost":    totalCost,
 		"LoggedInUser": loggedInUser,
+		"FoodItems":    foodItems,
+		"CartEmpty":    cartEmpty,
 	})
 }
 
 func GetCartItems(userID uint) ([]models.CartItem, error) {
 	var cartItems []models.CartItem
-	if err := models.DB.Where("user_id = ?", userID).Find(&cartItems).Error; err != nil {
+	err := models.DB.Where("user_id = ?", userID).
+		Preload("Product").
+		Find(&cartItems).Error
+	if err != nil {
 		return nil, err
 	}
 	return cartItems, nil
@@ -304,16 +310,132 @@ func AddToCart(c *gin.Context) {
 	}
 
 	for i, cartItem := range cartItems {
-		err := models.DB.Where("id_meal = ?", cartItem.ProductID).First(&cartItem.Product).Error
-		if err != nil {
+		var existingCartItem models.CartItem
+		err := models.DB.Where("user_id = ? AND product_id = ?", loggedInUser.ID, cartItem.ProductID).
+			Preload("Product").
+			First(&existingCartItem).Error
+
+		if err == nil {
+			// Элемент уже существует в корзине
+			existingCartItem.Quantity += cartItem.Quantity
+			existingCartItem.CalculateTotalPrice()
+			if err := models.DB.Save(&existingCartItem).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "could not update item in cart"})
+				return
+			}
+			cartItems[i] = existingCartItem
+		} else if errors.Is(err, gorm.ErrRecordNotFound) {
+			err := models.DB.Where("id_meal = ?", cartItem.ProductID).
+				First(&cartItem.Product).Error
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+				return
+			}
+			cartItem.UserID = loggedInUser.ID
+			cartItem.CalculateTotalPrice()
+			if err := models.DB.Create(&cartItem).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "could not add item to cart"})
+				return
+			}
+			cartItems[i] = cartItem
+		} else {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
 			return
 		}
-
-		cartItems[i] = cartItem
 	}
 
 	c.JSON(http.StatusOK, gin.H{"success": "added to cart", "cart_items": cartItems})
+}
+
+func RemoveFromCart(c *gin.Context) {
+	var requestData struct {
+		UserID    uint   `json:"user_id"`
+		ProductID string `json:"product_id"`
+	}
+	if err := c.ShouldBindJSON(&requestData); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var cartItem models.CartItem
+	err := models.DB.Where("user_id = ? AND product_id = ?", requestData.UserID, requestData.ProductID).
+		Preload("Product").
+		First(&cartItem).Error
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "cart item not found"})
+		return
+	}
+
+	if cartItem.Quantity > 1 {
+		cartItem.Quantity--
+		cartItem.CalculateTotalPrice()
+		if err := models.DB.Save(&cartItem).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "could not update cart item"})
+			return
+		}
+	} else {
+		if err := models.DB.Delete(&cartItem).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "could not delete cart item"})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": "cart item removed"})
+}
+
+func PlaceOrder(c *gin.Context) {
+	// Получите данные формы из запроса
+	var orderData struct {
+		Name    string `json:"name"`
+		Email   string `json:"email"`
+		Mobile  string `json:"mobile"`
+		Street  string `json:"street"`
+		City    string `json:"city"`
+		State   string `json:"state"`
+		Pincode string `json:"pincode"`
+	}
+	if err := c.ShouldBindJSON(&orderData); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Получите данные корзины из запроса
+	userID := loggedInUser.ID
+	cartItems, err := GetCartItems(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching cart data"})
+		return
+	}
+
+	// Рассчитайте общую стоимость заказа
+	totalCost := 0
+	for _, item := range cartItems {
+		totalCost += item.TotalPrice
+	}
+
+	// Создайте новую запись заказа в базе данных
+	order := models.Order{
+		UserID:    userID,
+		Name:      orderData.Name,
+		Email:     orderData.Email,
+		Mobile:    orderData.Mobile,
+		Street:    orderData.Street,
+		City:      orderData.City,
+		State:     orderData.State,
+		Pincode:   orderData.Pincode,
+		TotalCost: totalCost,
+		OrderDate: time.Now(),
+		CartItems: cartItems, // Связываем заказ с элементами корзины
+	}
+
+	// Сохраните запись заказа в базе данных
+	if err := models.DB.Create(&order).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error saving order"})
+		return
+	}
+
+	// Возврат успешного ответа
+	c.JSON(http.StatusOK, gin.H{"success": "Order placed successfully", "order": order})
 }
 
 func AddNewMeal(c *gin.Context) {

@@ -21,4 +21,9 @@ func AuthRoutes(router *gin.Engine) {
 	router.GET("/cart", controllers.Cart)
 
 	router.POST("/cart/add", controllers.AddToCart)
+
+	router.POST("/cart/remove", controllers.RemoveFromCart)
+
+	router.POST("/order", controllers.PlaceOrder)
+
 }

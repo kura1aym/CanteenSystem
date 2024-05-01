@@ -102,6 +102,7 @@
 
     #imgDiv>img {
         width: 100%;
+        height: auto;
         transition: all 1s ease-in-out;
     }
 
@@ -185,12 +186,31 @@
     </div>
 </div>
 
-<div id="navbar"></div>
-
 <div id="cartMainDiv">
 
     <!-- Display Dishes -->
-    <div id="display"></div>
+    <div id="display">
+        {{if .CartEmpty}}
+        <p>Your cart is empty. Start adding items!</p>
+        {{else}}
+        {{range .CartItems}}
+        <div id="foodDiv">
+            <div id="imgDiv"><img src="{{.Product.StrMealThumb}}" alt="{{.Product.StrMeal}}" width="100" height="100"></div>
+            <div id="cartDetailsDiv">
+                <p style="font-weight: 600; font-size: 17px;">{{.Product.StrMeal}}</p>
+                <p style="color: gray; font-size: 14px; margin-top: 5px;">{{.Product.StrCategory}}</p>
+                <p style="color: red; font-weight: 600; font-size: 22px;">{{.Product.Price}}₸</p>
+                <p>Quantity: {{.Quantity}}</p>
+                <p>Total Price: {{.TotalPrice}}₸</p>
+            </div>
+            <div id="btnDiv">
+                <button class="btn btn-outline-danger" data-product-id="{{.ProductID}}">Remove</button>
+            </div>
+        </div>
+        {{end}}
+        {{end}}
+    </div>
+
 
     <!-- Place Order Button & price -->
     <div id="boxSize">
@@ -199,7 +219,25 @@
                 Order Details
             </div>
             <div class="card-body p-0">
-                <div id="totalAmount" class="px-4 pt-4"></div>
+                <div id="totalAmount" class="px-4 pt-4">
+                    <div class="cartFontDiv">
+                        <p>Food Cost:</p>
+                        <p id="foodCost">{{ .TotalCost }}₸</p>
+                    </div>
+                    <div class="cartFontDiv">
+                        <p>Food Items:</p>
+                        <p id="foodItems">{{ .FoodItems }}</p>
+                    </div>
+                    <div class="cartFontDiv">
+                        <p>Discount:</p>
+                        <p id="discount">₸0</p>
+                    </div>
+                    <div class="cartFontDiv">
+                        <p>Grand Total:</p>
+                        <p id="grandTotal">{{ .TotalCost }}₸</p>
+                    </div>
+
+                </div>
                 <div id="couponDiv">
                     <input type="text" id="couponInput" class="form-control mb-3" placeholder="Enter Coupon Code" />
                     <button id="applyCoupon" class="btn btn-outline-success">Apply Coupon</button>
@@ -257,41 +295,92 @@
             })
             .catch(error => console.error('Error:', error));
     });
-    document.addEventListener("DOMContentLoaded", function() {
-        var addToCartButtons = document.querySelectorAll(".add-to-cart-button");
-        var loggedInUserID = parseInt("{{ .LoggedInUser.ID }}");
 
-        addToCartButtons.forEach(function(button) {
-            button.addEventListener("click", function() {
-                var productID = button.getAttribute("data-product-id");
+    document.addEventListener('DOMContentLoaded', function() {
+        var removeButtons = document.querySelectorAll('.btn.btn-outline-danger');
 
-                var data = [{
-                    user_id: loggedInUserID,
-                    product_id: productID,
-                    quantity: 1
-                }];
+        removeButtons.forEach(function(button) {
+            button.addEventListener('click', function() {
+                var productId = button.getAttribute('data-product-id');
+                var userId = parseInt("{{ .LoggedInUser.ID }}");
 
-                fetch("/cart/add", {
-                    method: "POST",
+                console.log('Removing item with product ID:', productId);
+
+                fetch('/cart/remove', {
+                    method: 'POST',
                     headers: {
-                        "Content-Type": "application/json"
+                        'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(data)
+                    body: JSON.stringify({
+                        user_id: userId,
+                        product_id: productId
+                    })
                 })
                     .then(response => response.json())
                     .then(result => {
                         if (result.success) {
-                            alert("Product added to cart");
+                            // Перезагрузите страницу после успешного удаления или обновления корзины
+                            window.location.reload();
                         } else {
-                            alert("Error adding product to cart: " + result.error);
+                            console.error('Error removing item from cart:', result.error);
                         }
                     })
-                    .catch(error => {
-                        console.error("Error adding product to cart:", error);
-                    });
+                    .catch(error => console.error('Error:', error));
             });
         });
     });
+
+    // Обработчик для отправки формы заказа
+    document.getElementById('form').addEventListener('submit', function(event) {
+        event.preventDefault(); // Остановить стандартное поведение формы
+
+        // Получить данные формы
+        const name = document.getElementById('name').value;
+        const email = document.getElementById('email').value;
+        const mobile = document.getElementById('mobile').value;
+        const street = document.getElementById('street').value;
+        const city = document.getElementById('city').value;
+        const state = document.getElementById('state').value;
+        const pincode = document.getElementById('pincode').value;
+
+        // Подготовить данные заказа в виде JSON
+        const orderData = {
+            name: name,
+            email: email,
+            mobile: mobile,
+            street: street,
+            city: city,
+            state: state,
+            pincode: pincode
+        };
+
+        // Отправить данные заказа на сервер
+        fetch('/order', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(orderData)
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Заказ успешно размещен
+                    alert('Order placed successfully!');
+                    // Вы можете перенаправить пользователя на страницу с подтверждением заказа
+                    window.location.href = '/order-confirmation';
+                } else {
+                    // Ошибка при размещении заказа
+                    console.error('Error placing order:', data.error);
+                    alert('Failed to place order. Please try again.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to place order. Please try again.');
+            });
+    });
+
 </script>
 </html>
 
