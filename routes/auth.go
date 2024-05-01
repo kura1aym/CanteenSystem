@@ -17,4 +17,8 @@ func AuthRoutes(router *gin.Engine) {
 	router.GET("/logout", controllers.Logout)
 
 	router.POST("/register", controllers.Register)
+
+	router.GET("/home", controllers.HomePage)
+
+	router.GET("/categories", controllers.Categories)
 }

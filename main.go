@@ -1,13 +1,15 @@
 package main
 
 import (
+	"canteenSystem/controllers"
 	"canteenSystem/models"
 	"canteenSystem/routes"
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
-	"log"
 	"net/http"
+	"fmt"
+	"log"
 	"os"
+	"github.com/joho/godotenv"
 )
 
 func main() {
@@ -25,7 +27,7 @@ func main() {
 	}
 
 	models.InitDB(config)
-
+	// check()
 	router := gin.Default()
 	fs := http.FileServer(http.Dir("assets"))
 	router.GET("/assets/*filepath", func(c *gin.Context) {
@@ -38,4 +40,17 @@ func main() {
 	routes.AuthRoutes(router)
 
 	router.Run(":8080")
+}
+
+func check() {
+	meals, err := controllers.GetMenuData()
+	if err != nil {
+		fmt.Println("Error fetching menu data:", err)
+		return
+	}
+	// Print fetched menu data
+	fmt.Println("Menu Items:")
+	for _, meal := range meals {
+		fmt.Printf("ID: %s, Meal: %s, Category: %s\n", meal.IDMeal, meal.StrMeal, meal.StrCategory)
+	}
 }
