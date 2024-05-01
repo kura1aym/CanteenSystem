@@ -15,11 +15,18 @@
 
     <div class="signup">
         <form  id="signup"   enctype="application/x-www-form-urlencoded">
-            <label for="chk" aria-hidden="true" style="margin: 40px">Sign up</label>
+            <label for="chk" aria-hidden="true" style="margin: 30px">Sign up</label>
             <input type="text" name="username" placeholder="Username" required>
             <input type="email" name="email" placeholder="Email" required="">
             <input type="password" name="password" placeholder="Password" required="">
-            <input type="text" name="role" placeholder="Role" required="">
+            <div class="select">
+                <select name="role" id="role" >
+                    <option disabled selected>Select a role</option>
+                    <option value="User">User</option>
+                    <option value="Admin">Admin</option>
+                </select>
+            </div>
+            <input type="password" id="pin" placeholder="Enter Admin PIN">
             <button type="submit">Sign up</button>
         </form>
     </div>
@@ -38,7 +45,15 @@
 </body>
 <script>
     document.getElementById('signup').addEventListener('submit', function(event) {
-        event.preventDefault(); // Prevent the default form submission
+        event.preventDefault();
+        const pin = document.getElementById('pin').value;
+        const expectedPin = '87654321';
+
+        if (document.getElementById('role').value === 'Admin' && pin !== expectedPin) {
+            alert('Invalid PIN. Access denied to select Admin role.');
+            return;
+        }
+
         const formData = new FormData(this);
         const jsonData = {
             username: formData.get('username'),
@@ -61,6 +76,8 @@
                     // If there's an error, check if it's because the user already exists
                     if (data.error.includes('user already exists')) {
                         alert('User already exists. Please choose a different username.');
+                    } else if (data.error.includes('email already in use')) {
+                        alert('Email already in use. Please choose a different email.');
                     } else {
                         console.error('Registration failed');
                     }

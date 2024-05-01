@@ -128,7 +128,7 @@
 </body>
 <script>
     document.getElementById('logoutForm').addEventListener('submit', function(event) {
-        event.preventDefault(); // Prevent the default form submission
+        event.preventDefault();
 
         console.log('Submitting logout form...');
         fetch('/logout', {

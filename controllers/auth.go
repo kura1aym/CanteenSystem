@@ -28,15 +28,19 @@ func Register(c *gin.Context) {
 	}
 
 	var existingUser models.User
-	if err := models.DB.Where("username = ?", user.Username).First(&existingUser).Error; err != nil {
+	if err := models.DB.Where("username = ? OR email = ?", user.Username, user.Email).First(&existingUser).Error; err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			c.JSON(500, gin.H{"error": "database error"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
 			return
 		}
 	}
 
 	if existingUser.ID != 0 {
-		c.JSON(400, gin.H{"error": "user already exists"})
+		if existingUser.Username == user.Username {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "username already in use"})
+		} else if existingUser.Email == user.Email {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "email already in use"})
+		}
 		return
 	}
 
@@ -56,8 +60,6 @@ func Register(c *gin.Context) {
 	loggedInUser = user
 
 	c.JSON(200, gin.H{"success": "user created"})
-	fmt.Printf("Sign up loggedInUser: %+v\n", loggedInUser)
-	fmt.Printf("Sign up user: %+v\n", user)
 
 	c.Redirect(http.StatusSeeOther, "/home")
 }
