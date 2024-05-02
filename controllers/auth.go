@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -143,9 +144,9 @@ func generateRandomPrice(min, max int) (int, error) {
 func GetMenuData() ([]models.Meal, error) {
 	urls := []string{
 		"https://www.themealdb.com/api/json/v1/1/search.php?f=c",
-		// "https://themealdb.p.rapidapi.com/search.php?f=e",
-		// "https://themealdb.p.rapidapi.com/search.php?f=b",
 	}
+
+	var meals []models.Meal
 
 	for _, url := range urls {
 		req, err := http.NewRequest("GET", url, nil)
@@ -158,7 +159,6 @@ func GetMenuData() ([]models.Meal, error) {
 		if err != nil {
 			return nil, err
 		}
-
 		defer resp.Body.Close()
 
 		var mealsResp MealsResponse
@@ -173,63 +173,35 @@ func GetMenuData() ([]models.Meal, error) {
 		for _, meal := range mealsResp.Meals {
 			var existingMeal models.Meal
 			err := models.DB.Where("id_meal = ?", meal.IDMeal).First(&existingMeal).Error
+
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				if err := models.DB.Create(&meal).Error; err != nil {
 					return nil, fmt.Errorf("could not add meal to database: %w", err)
 				}
-			} else if err != nil {
-				return nil, fmt.Errorf("database error: %w", err)
-			}
-		}
 
-		allMeals = append(allMeals, mealsResp.Meals...)
-	}
-
-	allMeals = assignPrice()
-	return allMeals, nil
-}
-
-func assignPrice() []models.Meal {
-	for i := range allMeals {
-		var existingMeal models.Meal
-		err := models.DB.Where("id_meal = ?", allMeals[i].IDMeal).First(&existingMeal).Error
-
-		if err == nil {
-			if existingMeal.Price == 0 {
 				price, err := generateRandomPrice(1500, 3500)
 				if err != nil {
-					fmt.Println("Error generating price:", err)
-					continue
+					return nil, fmt.Errorf("error generating price: %w", err)
 				}
-				allMeals[i].Price = price
-				existingMeal.Price = price
+				meal.Price = price
 
-				if err := models.DB.Save(&existingMeal).Error; err != nil {
-					fmt.Println("Error saving meal to database:", err)
-					continue
+				if err := models.DB.Save(&meal).Error; err != nil {
+					return nil, fmt.Errorf("error saving meal to database: %w", err)
 				}
+
+				meals = append(meals, meal)
+			} else if err != nil {
+				return nil, fmt.Errorf("database error: %w", err)
 			} else {
-				allMeals[i].Price = existingMeal.Price
+				if existingMeal.Price != 0 {
+					meal.Price = existingMeal.Price
+				}
+				meals = append(meals, meal)
 			}
-		} else if errors.Is(err, gorm.ErrRecordNotFound) {
-			price, err := generateRandomPrice(1500, 3500)
-			if err != nil {
-				fmt.Println("Error generating price:", err)
-				continue
-			}
-			allMeals[i].Price = price
-
-			existingMeal = allMeals[i]
-			if err := models.DB.Create(&existingMeal).Error; err != nil {
-				fmt.Println("Error saving meal to database:", err)
-				continue
-			}
-		} else {
-			fmt.Println("Error querying database", err)
-			continue
 		}
 	}
-	return allMeals
+
+	return meals, nil
 }
 
 type CategoriesResponse struct {
@@ -308,7 +280,7 @@ func Cart(c *gin.Context) {
 
 func GetCartItems(userID uint) ([]models.CartItem, error) {
 	var cartItems []models.CartItem
-	err := models.DB.Where("user_id = ?", userID).
+	err := models.DB.Where("user_id = ? AND order_id IS NULL", userID).
 		Preload("Product").
 		Find(&cartItems).Error
 	if err != nil {
@@ -325,53 +297,45 @@ func AddToCart(c *gin.Context) {
 	}
 
 	for i, cartItem := range cartItems {
-		// Получаем существующий элемент корзины, если он уже есть
 		var existingCartItem models.CartItem
 		err := models.DB.Where("user_id = ? AND product_id = ?", loggedInUser.ID, cartItem.ProductID).
 			Preload("Product").
 			First(&existingCartItem).Error
 
-		// Если элемент уже существует в корзине, увеличиваем его количество и пересчитываем общую стоимость
 		if err == nil {
 			existingCartItem.Quantity += cartItem.Quantity
 			existingCartItem.CalculateTotalPrice()
 			if err := models.DB.Save(&existingCartItem).Error; err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось обновить товар в корзине"})
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update the item in the shopping cart"})
 				return
 			}
 			cartItems[i] = existingCartItem
 		} else if errors.Is(err, gorm.ErrRecordNotFound) {
-			// Если элемент не найден в корзине, добавляем его как новый элемент
 			err := models.DB.Where("id_meal = ?", cartItem.ProductID).
 				First(&cartItem.Product).Error
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Ошибка базы данных"})
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 				return
 			}
 
-			// Устанавливаем идентификатор пользователя для элемента корзины
 			cartItem.UserID = loggedInUser.ID
 
-			// Установите `order_id` в `nil` или корректное значение
-			cartItem.OrderID = nil // Установите в `nil` или в подходящее значение
+			cartItem.OrderID = nil
 
-			// Пересчитываем общую стоимость для нового элемента корзины
 			cartItem.CalculateTotalPrice()
 
-			// Добавляем новый элемент корзины в базу данных
 			if err := models.DB.Create(&cartItem).Error; err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось добавить товар в корзину"})
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "The product could not be added to the cart"})
 				return
 			}
 			cartItems[i] = cartItem
 		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Ошибка базы данных"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 			return
 		}
 	}
 
-	// Отправляем положительный ответ после добавления товаров в корзину
-	c.JSON(http.StatusOK, gin.H{"success": "Товары добавлены в корзину", "cart_items": cartItems})
+	c.JSON(http.StatusOK, gin.H{"success": "Products added to the cart", "cart_items": cartItems})
 }
 
 func RemoveFromCart(c *gin.Context) {
@@ -385,11 +349,11 @@ func RemoveFromCart(c *gin.Context) {
 	}
 
 	var cartItem models.CartItem
-	err := models.DB.Where("user_id = ? AND product_id = ?", requestData.UserID, requestData.ProductID).
+	err := models.DB.Where("user_id = ? AND product_id = ? AND order_id IS NULL", requestData.UserID, requestData.ProductID).
 		Preload("Product").
 		First(&cartItem).Error
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "cart item not found"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "cart item not found"})
 		return
 	}
 
@@ -412,13 +376,14 @@ func RemoveFromCart(c *gin.Context) {
 
 func PlaceOrder(c *gin.Context) {
 	var orderData struct {
-		Name    string `json:"name"`
-		Email   string `json:"email"`
-		Mobile  string `json:"mobile"`
-		Street  string `json:"street"`
-		City    string `json:"city"`
-		State   string `json:"state"`
-		Pincode string `json:"pincode"`
+		Name     string  `json:"name"`
+		Email    string  `json:"email"`
+		Mobile   string  `json:"mobile"`
+		Street   string  `json:"street"`
+		City     string  `json:"city"`
+		State    string  `json:"state"`
+		Pincode  string  `json:"pincode"`
+		Discount float64 `json:"discount"`
 	}
 
 	if err := c.ShouldBindJSON(&orderData); err != nil {
@@ -428,56 +393,105 @@ func PlaceOrder(c *gin.Context) {
 
 	userID := loggedInUser.ID
 
-	cartItems, err := GetCartItems(userID)
+	cartItems, err := GetCartItemsWithoutOrderID(userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Ошибка получения данных о корзине"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching cart data"})
 		return
 	}
 
-	totalCost := 0
+	originalTotalCost := 0
 	for _, item := range cartItems {
-		totalCost += item.TotalPrice
+		originalTotalCost += item.TotalPrice
 	}
 
+	finalTotalCost := float64(originalTotalCost) - orderData.Discount
+
 	order := models.Order{
-		UserID:    userID,
-		Name:      orderData.Name,
-		Email:     orderData.Email,
-		Mobile:    orderData.Mobile,
-		Street:    orderData.Street,
-		City:      orderData.City,
-		State:     orderData.State,
-		Pincode:   orderData.Pincode,
-		TotalCost: totalCost,
-		OrderDate: time.Now(),
-		CartItems: cartItems, // Список товаров из корзины
+		UserID:           userID,
+		Name:             orderData.Name,
+		Email:            orderData.Email,
+		Mobile:           orderData.Mobile,
+		Street:           orderData.Street,
+		City:             orderData.City,
+		State:            orderData.State,
+		Pincode:          orderData.Pincode,
+		TotalCost:        originalTotalCost,
+		Discount:         orderData.Discount,
+		CostWithDiscount: finalTotalCost,
+		OrderDate:        time.Now(),
+		CartItems:        cartItems,
 	}
 
 	if err := models.DB.Create(&order).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Ошибка сохранения заказа"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error saving order"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": "Заказ успешно оформлен", "order": order})
+	for _, item := range cartItems {
+		item.OrderID = &order.ID
+		if err := models.DB.Save(&item).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating cart item"})
+			return
+		}
+	}
 
-	err = ClearCart(c)
+	c.JSON(http.StatusOK, gin.H{"success": "Order placed successfully", "order": order})
+}
+
+func GetCartItemsWithoutOrderID(userID uint) ([]models.CartItem, error) {
+	var cartItems []models.CartItem
+	err := models.DB.Where("user_id = ? AND order_id IS NULL", userID).
+		Preload("Product").
+		Find(&cartItems).Error
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Ошибка очистки корзины"})
+		return nil, err
+	}
+	return cartItems, nil
+}
+
+func OrderList(c *gin.Context) {
+	userID := loggedInUser.ID
+
+	var orders []models.Order
+	err := models.DB.Where("user_id = ?", userID).Preload("CartItems.Product").Find(&orders).Error
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error receiving orders"})
 		return
+	}
+
+	fmt.Println("ORDERS: ", orders)
+
+	c.HTML(http.StatusOK, "order_list.html", gin.H{
+		"orders":       orders,
+		"LoggedInUser": loggedInUser,
+	})
+}
+
+func Search(c *gin.Context) {
+	searchTerm := c.Query("s")
+	searchResult := SearchResult(searchTerm)
+
+	if searchTerm == "" {
+		c.HTML(http.StatusOK, "search.html", gin.H{
+			"SearchResult": nil,
+			"Username":     loggedInUser.Username,
+		})
+	} else {
+		c.HTML(http.StatusOK, "search.html", gin.H{
+			"SearchResult": searchResult,
+			"Username":     loggedInUser.Username,
+		})
 	}
 }
 
-func ClearCart(c *gin.Context) error {
-	userID := loggedInUser.ID
-
-	err := models.DB.Where("user_id = ?", userID).Delete(&models.CartItem{}).Error
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось очистить корзину"})
+func SearchResult(searchTerm string) []models.Meal {
+	var searchResult []models.Meal
+	searchTerm = strings.ToLower(searchTerm)
+	result := models.DB.Where("LOWER(str_meal) LIKE ?", "%"+searchTerm+"%").Find(&searchResult)
+	if result.Error != nil {
 		return nil
 	}
-
-	c.JSON(http.StatusOK, gin.H{"success": "Корзина успешно очищена"})
-	return nil
+	return searchResult
 }
 
 func AddNewMeal(c *gin.Context) {
