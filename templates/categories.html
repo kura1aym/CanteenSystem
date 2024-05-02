@@ -43,8 +43,6 @@
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             grid-gap: 20px;
-            /* flex-wrap: wrap;
-            justify-content: space-between; */
             padding-top: 100px;
             padding-inline: 150px;
         }
@@ -55,11 +53,17 @@
             box-sizing: border-box;
             border: 1px solid #ccc;
             border-radius: 5px;
+            overflow: hidden;
         }
         .menu-item img {
             width: 100%;
             height: auto;
             border-radius: 5px;
+            transition: transform 0.3s ease-in-out;
+            cursor: pointer;
+        }
+        .menu-item img:hover {
+            transform: scale(1.25);
         }
         .menu-item h3 {
             margin-top: 10px;
@@ -119,10 +123,8 @@
     <div class="menu-items">
         {{range .Categories}}
         <div class="menu-item">
-            <img src="{{.StrCategoryThumb}}" alt="{{.StrCategory}}" width="100" height="100">
-            <h3>{{.StrCategory}}</h3>
-            
-            <button class="category-button" data-category="{{.StrCategory}}">Go</button>
+            <img src="{{.StrCategoryThumb}}" class="category-button" data-category="{{.StrCategory}}" alt="{{.StrCategory}}" width="100" height="100">
+            <h3 style="text-align: center;">{{.StrCategory}}</h3>
         </div>
         {{end}}
     </div>
