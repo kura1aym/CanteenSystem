@@ -194,10 +194,15 @@
     <!-- Display Dishes -->
     <div id="display">
         {{range .AllMeals}}
-        <div class="menu-item">
-            <img src="{{.StrMealThumb}}" alt="{{.StrMeal}}" width="100" height="100">
-            <h5>{{.StrMeal}}</h5>
-            <p style="color: gray;font-size: 14px;margin-top: 5px;">{{.StrCategory}}</p>
+        <div>
+            <img src="{{.StrMealThumb}}" alt="{{.StrMeal}}" width="120" height="120">
+            <h5 style="font-size: 16px;">{{.StrMeal}}</h5>
+            <p style="color: gray;font-size: 14px;margin-top: 5px; width: 120;">{{.StrCategory}}</p>
+            <p class="menu-item-price">{{.Price}}₸</p>
+            <div style="display: flex; width: 140px;">
+                <button class="btn"><i class="fa fa-edit"></i></button>
+                <button class="btn btn-outline-danger" data-product-id="{{.IDMeal }}"><i class="fa fa-trash"></i></button>
+            </div>
         </div>
         {{end}}
     </div>
@@ -283,6 +288,38 @@
             .catch(error => console.error('Error:', error));
     });
 
+    document.addEventListener('DOMContentLoaded', function() {
+        var removeButtons = document.querySelectorAll('.btn.btn-outline-danger');
+
+        removeButtons.forEach(function(button) {
+            button.addEventListener('click', function() {
+                var mealID = button.getAttribute('data-product-id');
+
+                console.log('Removing item with meal ID:', mealID);
+
+                fetch('/admin/remove', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        id: mealID
+                    })
+                })
+                    .then(response => response.json())
+                    .then(result => {
+                        if (result.success) {
+                            alert('Meal removed successfully!');
+                            window.location.reload();
+                        } else {
+                            console.error('Error removing item from meal:', result.error);
+                        }
+                    })
+                    .catch(error => console.error('Error:', error));
+            });
+        });
+    });
+
     // Обработчик для отправки формы заказа
     document.getElementById('form').addEventListener('submit', function(event) {
         event.preventDefault(); // Остановить стандартное поведение формы
@@ -308,7 +345,7 @@
         };
 
         // Отправить данные заказа на сервер
-        fetch('/add', {
+        fetch('/admin/add', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
