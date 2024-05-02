@@ -118,18 +118,6 @@ t<!DOCTYPE html>
             </form>
         </div>
     </div>
-
-    <div class="menu-items">
-        {{range .AllMeals}}
-        <div class="menu-item">
-            <img src="{{.StrMealThumb}}" alt="{{.StrMeal}}">
-            <div style="height: 20%;">
-            <h3>{{.StrMeal}}</h3>
-            <p style="color: gray;font-size: 14px;margin-top: 5px;">{{.StrCategory}}</p>
-            </div>
-        </div>
-        {{end}}
-    </div>
      <div class="menu-items">
         {{range .AllMeals}}
         <div class="menu-item">
