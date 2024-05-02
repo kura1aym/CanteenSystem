@@ -172,7 +172,6 @@ func GetMenuData() ([]models.Meal, error) {
   
 	  for _, meal := range mealsResp.Meals {
 		var existingMeal models.Meal
-<<<<<<< HEAD
 		err := models.DB.Where("id_meal = ?", meal.IDMeal).First(&existingMeal).Error
   
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -198,50 +197,12 @@ func GetMenuData() ([]models.Meal, error) {
 			meal.Price = existingMeal.Price
 		  }
 		  meals = append(meals, meal)
-=======
-		err := models.DB.Where("id_meal = ?", allMeals[i].IDMeal).First(&existingMeal).Error
-
-		if err == nil {
-			if existingMeal.Price == 0 {
-				price, err := generateRandomPrice(1500, 3500)
-				if err != nil {
-					fmt.Println("Error generating price:", err)
-					continue
-				}
-				allMeals[i].Price = price
-				existingMeal.Price = price
-
-				if err := models.DB.Save(&existingMeal).Error; err != nil {
-					fmt.Println("Error saving meal to database:", err)
-					continue
-				}
-			} else {
-				allMeals[i].Price = existingMeal.Price
-			}
-		} else if errors.Is(err, gorm.ErrRecordNotFound) {
-			price, err := generateRandomPrice(1500, 3500)
-			if err != nil {
-				fmt.Println("Error generating price:", err)
-				continue
-			}
-			allMeals[i].Price = price
-
-			existingMeal = allMeals[i]
-			if err := models.DB.Create(&existingMeal).Error; err != nil {
-				fmt.Println("Error saving meal to database:", err)
-				continue
-			}
-		} else {
-			fmt.Println("Error querying database", err)
-			continue
->>>>>>> 1c68e1c3addbf26cef4b6b555f87697ea79a3190
 		}
 	  }
 	}
   
 	return meals, nil
 }
-
 type CategoriesResponse struct {
 	Categories []models.Category `json:"categories"`
 }
