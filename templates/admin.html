@@ -296,7 +296,7 @@
                 var mealID = button.getAttribute('data-product-id');
 
                 console.log('Removing item with meal ID:', mealID);
-                alert('Meal removed successfully!');
+                alert('Are you sure that you need to remove?');
                 fetch('/admin/remove', {
                     method: 'POST',
                     headers: {
