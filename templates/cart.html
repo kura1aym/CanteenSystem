@@ -169,22 +169,25 @@
 <body>
 
 <div class="top-bar">
-    <div class="left-items">
-        <a href="/categories"><i class="fas fa-bars"></i> Categories</a>
-        <a href="/search"><i class="fas fa-search"></i> Search</a>
-        <a href="/order"><i class="fas fa-user"></i> {{ .LoggedInUser.Username }}</a>
+        <div class="left-items">
+            <a href="/categories"><i class="fas fa-bars"></i> Categories</a>
+            <a href="/search"><i class="fas fa-search"></i> Search</a>
+            <a href="/order"><i class="fas fa-user"></i> {{ .LoggedInUser.Username }}</a>
+            {{ if eq .LoggedInUser.Role "Admin" }}
+            <a href="/admin"><i class="fa fa-plus"></i> Add Meal</a>
+            {{end}}
+        </div>
+        <div class="center-item home-button">
+            <a href="/home"><img src="/assets/logo-white.png"
+            width="130" height="55" alt="Home"></a>
+        </div>
+        <div class="right-items">
+            <a href="/cart"><i class="fas fa-shopping-cart"></i> Cart</a>
+            <form id="logoutForm" enctype="application/x-www-form-urlencoded">
+                <button class="logout-button" type="submit"><i class="fas fa-sign-out-alt"></i> Logout</button>
+            </form>
+        </div>
     </div>
-    <div class="center-item home-button">
-        <a href="/home"><img src="/assets/logo-white.png"
-                             width="130" height="55" alt="Home"></a>
-    </div>
-    <div class="right-items">
-        <a href="/cart"><i class="fas fa-shopping-cart"></i> Cart</a>
-        <form id="logoutForm" enctype="application/x-www-form-urlencoded">
-            <button class="logout-button" type="submit"><i class="fas fa-sign-out-alt"></i> Logout</button>
-        </form>
-    </div>
-</div>
 
 <div id="cartMainDiv">
 
