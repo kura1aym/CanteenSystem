@@ -603,4 +603,28 @@ func OneCategory(c *gin.Context) {
 		"AllMeals": categoryResult,
 		"Username":     loggedInUser.Username,
 	})
-}	
+}
+
+func RemoveMeal(c *gin.Context) {
+	var requestData struct {
+		ID string `json:"product_id"`
+	}
+	if err := c.ShouldBindJSON(&requestData); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var meal models.Meal
+	err := models.DB.Where("id_meal = ?", requestData.ID).First(&meal).Error
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "meal item not found"})
+		return
+	}
+
+	if err := models.DB.Delete(&meal).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not delete meal item"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": "meal item removed"})
+}
