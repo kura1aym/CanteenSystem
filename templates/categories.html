@@ -102,10 +102,7 @@
         <div class="left-items">
             <a href="/categories"><i class="fas fa-bars"></i> Categories</a>
             <a href="/search"><i class="fas fa-search"></i> Search</a>
-            <a href="/order"><i class="fas fa-user"></i> {{ .LoggedInUser.Username }}</a>
-            {{ if eq .LoggedInUser.Role "Admin" }}
-            <a href="/admin"><i class="fa fa-plus"></i> Add Meal</a>
-            {{end}}
+            <label><i class="fas fa-user"></i> {{ .Username }}</label>
         </div>
         <div class="center-item home-button">
             <a href="/home"><img src="/assets/logo-white.png"
@@ -124,10 +121,12 @@
         <div class="menu-item">
             <img src="{{.StrCategoryThumb}}" alt="{{.StrCategory}}" width="100" height="100">
             <h3>{{.StrCategory}}</h3>
-            <button>Go</button>
+            
+            <button class="category-button" data-category="{{.StrCategory}}">Go</button>
         </div>
         {{end}}
     </div>
+
 </body>
 <script>
     document.getElementById('logoutForm').addEventListener('submit', function(event) {
@@ -151,6 +150,14 @@
                 }
             })
             .catch(error => console.error('Error:', error));
+    });
+    const categoryButtons = document.querySelectorAll('.category-button');
+    categoryButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const category = this.dataset.category; 
+            console.log('Clicked category:', category);
+            window.location.href = `/home?category=${encodeURIComponent(category)}`;
+        });
     });
 </script>
 
