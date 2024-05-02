@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Canteen Management System</title>
-    <!-- Font Awesome for icons -->
+    <title>Search</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
     <style>
         body {
@@ -102,7 +101,7 @@
         <div class="left-items">
             <a href="/categories"><i class="fas fa-bars"></i> Categories</a>
             <a href="/search"><i class="fas fa-search"></i> Search</a>
-            <a href="/order"><i class="fas fa-user"></i> {{ .LoggedInUser.Username }}</a>
+            <label><i class="fas fa-user"></i> {{ .LoggedInUser.Username }}</label>
         </div>
         <div class="center-item home-button">
             <a href="/home"><img src="/assets/logo-white.png"
@@ -115,22 +114,30 @@
             </form>
         </div>
     </div>
+    <h2>Search for Food</h2>
+    <form action="/search" method="GET">
+        <label for="search">Enter food name:</label>
+        <input type="text" id="search" name="s">
+        <button type="submit">Search</button>
+    </form>
 
     <div class="menu-items">
-        {{range .MenuItems}}
-        <div class="menu-item">
-            <img src="{{.StrMealThumb}}" alt="{{.StrMeal}}" width="100" height="100">
-            <h3>{{.StrMeal}}</h3>
-            <p style="color: gray;font-size: 14px;margin-top: 5px;">{{.StrCategory}}</p>
-            <p class="menu-item-price">{{.Price}}₸</p>
-            <button class="add-to-cart-button" data-product-id="{{.IDMeal}}">Add to cart</button>
-        </div>
+        {{ if .SearchResult }}
+            {{range .SearchResult}}
+            <div class="menu-item">
+                <img src="{{.StrMealThumb}}" alt="{{.StrMeal}}" width="100" height="100">
+                <h3>{{.StrMeal}}</h3>
+                <p style="color: gray;font-size: 14px;margin-top: 5px;">{{.StrCategory}}</p>
+                <p class="menu-item-price">{{.Price}}₸</p>
+                <button class="add-to-cart-button" data-product-id="{{.IDMeal}}">Add to cart</button>
+            </div>
+            {{end}}
         {{end}}
     </div>
 </body>
 <script>
     document.getElementById('logoutForm').addEventListener('submit', function(event) {
-        event.preventDefault();
+        event.preventDefault(); // Prevent the default form submission
 
         console.log('Submitting logout form...');
         fetch('/logout', {
@@ -151,7 +158,6 @@
             })
             .catch(error => console.error('Error:', error));
     });
-
     document.addEventListener("DOMContentLoaded", function() {
         var addToCartButtons = document.querySelectorAll(".add-to-cart-button");
         var loggedInUserID = parseInt("{{ .LoggedInUser.ID }}");
@@ -159,11 +165,6 @@
         addToCartButtons.forEach(function(button) {
             button.addEventListener("click", function() {
                 var productID = button.getAttribute("data-product-id");
-
-                if (loggedInUserID == 0) {
-                    alert("Please log in to add items to cart.");
-                    return;
-                }
 
                 var data = [{
                     user_id: loggedInUserID,

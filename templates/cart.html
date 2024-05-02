@@ -172,7 +172,7 @@
     <div class="left-items">
         <a href="/categories"><i class="fas fa-bars"></i> Categories</a>
         <a href="/search"><i class="fas fa-search"></i> Search</a>
-        <label><i class="fas fa-user"></i> {{ .LoggedInUser.Username }}</label>
+        <a href="/order"><i class="fas fa-user"></i> {{ .LoggedInUser.Username }}</a>
     </div>
     <div class="center-item home-button">
         <a href="/home"><img src="/assets/logo-white.png"
@@ -230,7 +230,7 @@
                     </div>
                     <div class="cartFontDiv">
                         <p>Discount:</p>
-                        <p id="discount">₸0</p>
+                        <p id="discount">0₸</p>
                     </div>
                     <div class="cartFontDiv">
                         <p>Grand Total:</p>
@@ -273,8 +273,9 @@
 
 </body>
 <script>
+    //logout part
     document.getElementById('logoutForm').addEventListener('submit', function(event) {
-        event.preventDefault(); // Prevent the default form submission
+        event.preventDefault();
 
         console.log('Submitting logout form...');
         fetch('/logout', {
@@ -296,6 +297,7 @@
             .catch(error => console.error('Error:', error));
     });
 
+    //remove cart
     document.addEventListener('DOMContentLoaded', function() {
         var removeButtons = document.querySelectorAll('.btn.btn-outline-danger');
 
@@ -319,7 +321,6 @@
                     .then(response => response.json())
                     .then(result => {
                         if (result.success) {
-                            // Перезагрузите страницу после успешного удаления или обновления корзины
                             window.location.reload();
                         } else {
                             console.error('Error removing item from cart:', result.error);
@@ -330,11 +331,47 @@
         });
     });
 
-    // Обработчик для отправки формы заказа
-    document.getElementById('form').addEventListener('submit', function(event) {
-        event.preventDefault(); // Остановить стандартное поведение формы
+    //coupon code processing
+    document.getElementById('applyCoupon').addEventListener('click', function() {
+    const couponCode = document.getElementById('couponInput').value.trim();
+    let discountPercentage = 0;
 
-        // Получить данные формы
+    switch (couponCode) {
+        case 'FOODSTORE5':
+            discountPercentage = 5;
+            break;
+        case 'FOODSTORE10':
+            discountPercentage = 10;
+            break;
+        case 'FOODSTORE15':
+            discountPercentage = 15;
+            break;
+        case 'FOODSTORE20':
+            discountPercentage = 20;
+            break;
+        case 'FOODSTORE25':
+            discountPercentage = 25;
+            break;
+        case 'FOODSTORE30':
+            discountPercentage = 30;
+            break;
+        default:
+            alert('Invalid coupon code.');
+            return;
+    }
+
+    const foodCost = parseFloat(document.getElementById('foodCost').textContent.replace('₸', ''));
+    const discountAmount = (foodCost * discountPercentage) / 100;
+    const grandTotal = foodCost - discountAmount;
+
+    document.getElementById('discount').textContent = `₸${discountAmount.toFixed(2)}`;
+    document.getElementById('grandTotal').textContent = `₸${grandTotal.toFixed(2)}`;
+    });
+
+    //order part
+    document.getElementById('form').addEventListener('submit', function(event) {
+        event.preventDefault();
+
         const name = document.getElementById('name').value;
         const email = document.getElementById('email').value;
         const mobile = document.getElementById('mobile').value;
@@ -343,18 +380,23 @@
         const state = document.getElementById('state').value;
         const pincode = document.getElementById('pincode').value;
 
-        // Подготовить данные заказа в виде JSON
+        const foodCost = parseFloat(document.getElementById('foodCost').textContent.replace('₸', ''));
+        const discount = parseFloat(document.getElementById('discount').textContent.replace('₸', ''));
+        const grandTotal = parseFloat(document.getElementById('grandTotal').textContent.replace('₸', ''));
+
         const orderData = {
-            name: name,
-            email: email,
-            mobile: mobile,
-            street: street,
-            city: city,
-            state: state,
-            pincode: pincode
+            name,
+            email,
+            mobile,
+            street,
+            city,
+            state,
+            pincode,
+            foodCost,
+            discount,
+            grandTotal
         };
 
-        // Отправить данные заказа на сервер
         fetch('/order', {
             method: 'POST',
             headers: {
@@ -362,17 +404,30 @@
             },
             body: JSON.stringify(orderData)
         })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Заказ успешно размещен
-                    alert('Order placed successfully!');
-                    // Вы можете перенаправить пользователя на страницу с подтверждением заказа
-                    window.location.href = '/order-confirmation';
+            .then(response => response.text())
+            .then(text => {
+                const responses = text.split('}{');
+                if (responses.length > 1) {
+                    const firstResponse = JSON.parse(responses[0] + '}');
+                    const secondResponse = JSON.parse('{' + responses[1]);
+
+                    if (firstResponse.success) {
+                        alert(firstResponse.success);
+                    }
+                    if (secondResponse.order) {
+                        console.log(secondResponse.order);
+                        alert('Order placed successfully!');
+                        window.location.href = '/order';
+                    }
                 } else {
-                    // Ошибка при размещении заказа
-                    console.error('Error placing order:', data.error);
-                    alert('Failed to place order. Please try again.');
+                    const data = JSON.parse(text);
+                    if (data.success) {
+                        alert(data.success);
+                        window.location.href = '/order';
+                    } else {
+                        console.error('Error placing order:', data.error);
+                        alert('Failed to place order. Please try again.');
+                    }
                 }
             })
             .catch(error => {
@@ -380,7 +435,6 @@
                 alert('Failed to place order. Please try again.');
             });
     });
-
 </script>
 </html>
 
