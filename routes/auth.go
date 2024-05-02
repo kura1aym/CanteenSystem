@@ -14,7 +14,9 @@ func AuthRoutes(router *gin.Engine) {
 
 	router.GET("/admin", controllers.Admin)
 
-	router.POST("/add", controllers.PlaceMeal)
+	router.POST("/admin/add", controllers.PlaceMeal)
+
+	router.POST("/admin/remove", controllers.RemoveMeal)
 
 	router.GET("/home", controllers.HomePage)
 
