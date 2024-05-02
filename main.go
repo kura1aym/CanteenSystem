@@ -36,7 +36,7 @@ func main() {
 
 	router.LoadHTMLGlob("templates/*")
 	router.StaticFile("/login.html", "./templates/login.html")
-
+	
 	routes.AuthRoutes(router)
 
 	router.Run(":8080")

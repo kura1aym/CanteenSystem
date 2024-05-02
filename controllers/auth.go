@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -142,79 +143,65 @@ func generateRandomPrice(min, max int) (int, error) {
 
 func GetMenuData() ([]models.Meal, error) {
 	urls := []string{
-		"https://www.themealdb.com/api/json/v1/1/search.php?f=c",
-		// "https://themealdb.p.rapidapi.com/search.php?f=e",
-		// "https://themealdb.p.rapidapi.com/search.php?f=b",
+	  "https://www.themealdb.com/api/json/v1/1/search.php?f=c",
 	}
-
+  
+	var meals []models.Meal
+  
 	for _, url := range urls {
-		req, err := http.NewRequest("GET", url, nil)
-		if err != nil {
-			return nil, err
-		}
-
-		client := &http.Client{}
-		resp, err := client.Do(req)
-		if err != nil {
-			return nil, err
-		}
-
-		defer resp.Body.Close()
-
-		var mealsResp MealsResponse
-		if err := json.NewDecoder(resp.Body).Decode(&mealsResp); err != nil {
-			return nil, err
-		}
-
-		if len(mealsResp.Meals) > 10 {
-			mealsResp.Meals = mealsResp.Meals[:10]
-		}
-
-		for _, meal := range mealsResp.Meals {
-			var existingMeal models.Meal
-			err := models.DB.Where("id_meal = ?", meal.IDMeal).First(&existingMeal).Error
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				if err := models.DB.Create(&meal).Error; err != nil {
-					return nil, fmt.Errorf("could not add meal to database: %w", err)
-				}
-			} else if err != nil {
-				return nil, fmt.Errorf("database error: %w", err)
-			}
-		}
-
-		allMeals = append(allMeals, mealsResp.Meals...)
-	}
-
-	allMeals = assignPrice()
-	return allMeals, nil
-}
-
-func assignPrice() []models.Meal {
-	for i := range allMeals {
+	  req, err := http.NewRequest("GET", url, nil)
+	  if err != nil {
+		return nil, err
+	  }
+  
+	  client := &http.Client{}
+	  resp, err := client.Do(req)
+	  if err != nil {
+		return nil, err
+	  }
+	  defer resp.Body.Close()
+  
+	  var mealsResp MealsResponse
+	  if err := json.NewDecoder(resp.Body).Decode(&mealsResp); err != nil {
+		return nil, err
+	  }
+  
+	  if len(mealsResp.Meals) > 10 {
+		mealsResp.Meals = mealsResp.Meals[:10]
+	  }
+  
+	  for _, meal := range mealsResp.Meals {
 		var existingMeal models.Meal
-		err := models.DB.Where("id_meal = ?", allMeals[i].IDMeal).First(&existingMeal).Error
-		if err == nil {
-			allMeals[i].Price = existingMeal.Price
-		} else if errors.Is(err, gorm.ErrRecordNotFound) {
-			price, err := generateRandomPrice(1500, 3500)
-			if err != nil {
-				fmt.Println("Error generating price:", err)
-				continue
-			}
-			allMeals[i].Price = price
-
-			allMeals[i].Price = price
-			existingMeal = allMeals[i]
-			if err := models.DB.Create(&existingMeal).Error; err != nil {
-				fmt.Println("Error saving meal to database:", err)
-				continue
-			}
+		err := models.DB.Where("id_meal = ?", meal.IDMeal).First(&existingMeal).Error
+  
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+		  if err := models.DB.Create(&meal).Error; err != nil {
+			return nil, fmt.Errorf("could not add meal to database: %w", err)
+		  }
+  
+		  price, err := generateRandomPrice(1500, 3500)
+		  if err != nil {
+			return nil, fmt.Errorf("error generating price: %w", err)
+		  }
+		  meal.Price = price
+  
+		  if err := models.DB.Save(&meal).Error; err != nil {
+			return nil, fmt.Errorf("error saving meal to database: %w", err)
+		  }
+  
+		  meals = append(meals, meal)
+		} else if err != nil {
+		  return nil, fmt.Errorf("database error: %w", err)
 		} else {
-			fmt.Println("Error querying database:", err)
-			continue
+		  if existingMeal.Price != 0 {
+			meal.Price = existingMeal.Price
+		  }
+		  meals = append(meals, meal)
 		}
+	  }
 	}
-	return allMeals
+  
+	return meals, nil
 }
 
 type CategoriesResponse struct {
@@ -497,4 +484,30 @@ func AddNewMeal(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Meal added successfully", "allMeals": meal})
 
+}
+func Search(c *gin.Context) {
+	searchTerm := c.Query("s")
+	searchResult := SearchResult(searchTerm)
+
+	if searchTerm == "" {
+		c.HTML(http.StatusOK, "search.html", gin.H{
+			"SearchResult": nil,
+			"Username":   loggedInUser.Username,
+		})
+	} else {
+		c.HTML(http.StatusOK, "search.html", gin.H{
+			"SearchResult": searchResult,
+			"Username":   loggedInUser.Username,
+		})
+	}
+}
+
+func SearchResult(searchTerm string) []models.Meal {
+	var searchResult []models.Meal
+	searchTerm = strings.ToLower(searchTerm)
+    result := models.DB.Where("LOWER(str_meal) LIKE ?", "%"+searchTerm+"%").Find(&searchResult)
+    if result.Error != nil {
+        return nil
+    }
+    return searchResult
 }
