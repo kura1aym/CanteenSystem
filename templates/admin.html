@@ -296,20 +296,19 @@
                 var mealID = button.getAttribute('data-product-id');
 
                 console.log('Removing item with meal ID:', mealID);
-
+                alert('Meal removed successfully!');
                 fetch('/admin/remove', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        id: mealID
+                        product_id: mealID
                     })
                 })
                     .then(response => response.json())
                     .then(result => {
                         if (result.success) {
-                            alert('Meal removed successfully!');
                             window.location.reload();
                         } else {
                             console.error('Error removing item from meal:', result.error);
