@@ -157,6 +157,8 @@ func generateRandomPrice(min, max int) (int, error) {
 func GetMenuData() ([]models.Meal, error) {
 	urls := []string{
 		"https://www.themealdb.com/api/json/v1/1/search.php?f=c",
+		"https://www.themealdb.com/api/json/v1/1/search.php?f=e",
+		"https://www.themealdb.com/api/json/v1/1/search.php?f=f",
 	}
 
 	var meals []models.Meal
