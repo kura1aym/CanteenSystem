@@ -193,8 +193,24 @@ func assignPrice() []models.Meal {
 	for i := range allMeals {
 		var existingMeal models.Meal
 		err := models.DB.Where("id_meal = ?", allMeals[i].IDMeal).First(&existingMeal).Error
+
 		if err == nil {
-			allMeals[i].Price = existingMeal.Price
+			if existingMeal.Price == 0 {
+				price, err := generateRandomPrice(1500, 3500)
+				if err != nil {
+					fmt.Println("Error generating price:", err)
+					continue
+				}
+				allMeals[i].Price = price
+				existingMeal.Price = price
+
+				if err := models.DB.Save(&existingMeal).Error; err != nil {
+					fmt.Println("Error saving meal to database:", err)
+					continue
+				}
+			} else {
+				allMeals[i].Price = existingMeal.Price
+			}
 		} else if errors.Is(err, gorm.ErrRecordNotFound) {
 			price, err := generateRandomPrice(1500, 3500)
 			if err != nil {
@@ -203,14 +219,13 @@ func assignPrice() []models.Meal {
 			}
 			allMeals[i].Price = price
 
-			allMeals[i].Price = price
 			existingMeal = allMeals[i]
 			if err := models.DB.Create(&existingMeal).Error; err != nil {
 				fmt.Println("Error saving meal to database:", err)
 				continue
 			}
 		} else {
-			fmt.Println("Error querying database:", err)
+			fmt.Println("Error querying database", err)
 			continue
 		}
 	}
