@@ -600,7 +600,7 @@ func OneCategory(c *gin.Context) {
 	category = strings.ToLower(category)
 	models.DB.Where("LOWER(str_category) LIKE ?", "%"+category+"%").Find(&categoryResult)
 	c.HTML(http.StatusOK, "home.html", gin.H{
-		"MenuItems": categoryResult,
+		"AllMeals": categoryResult,
 		"Username":     loggedInUser.Username,
 	})
 }	
