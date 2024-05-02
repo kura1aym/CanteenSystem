@@ -12,7 +12,9 @@ func AuthRoutes(router *gin.Engine) {
 
 	router.POST("/register", controllers.Register)
 
-	router.POST("/addNewMeal", controllers.AddNewMeal)
+	router.GET("/admin", controllers.Admin)
+
+	router.POST("/add", controllers.PlaceMeal)
 
 	router.GET("/home", controllers.HomePage)
 
