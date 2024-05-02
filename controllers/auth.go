@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -494,31 +495,88 @@ func SearchResult(searchTerm string) []models.Meal {
 	return searchResult
 }
 
-func AddNewMeal(c *gin.Context) {
-	fmt.Println("YOU ARE IN ADDTOMENU")
-	var meal models.Meal
-
-	if err := c.ShouldBindJSON(&meal); err != nil {
-		c.JSON(400, gin.H{"error binding meal": err.Error()})
+func Admin(c *gin.Context){
+	categories, err := GetCategories()
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Error fetching menu data: %v", err)
 		return
 	}
+	var meals []models.Meal
 
-	result := models.DB.Where("StrMeal = ?", meal.StrMeal).First(&meal)
-	if result.Error != nil && result.Error != gorm.ErrRecordNotFound {
-		c.JSON(400, gin.H{"Error querying meal:": result.Error})
-	}
-	if result.Error == gorm.ErrRecordNotFound {
-		if err := models.DB.Create(&meal).Error; err != nil {
-			c.JSON(500, gin.H{"error": "could not create meal"})
-			return
-		}
-		fmt.Println("Meal created successfully")
-	} else {
-		fmt.Println("Meal already exists")
-	}
+	err = models.DB.Find(&meals).Error
+    if err != nil {
+		c.String(http.StatusInternalServerError, "Error fetching meals data: %v", err)
+    }
 
-	allMeals = append(allMeals, meal)
-
-	c.JSON(http.StatusOK, gin.H{"message": "Meal added successfully", "allMeals": meal})
+	c.HTML(http.StatusOK, "admin.html", gin.H{
+		"Categories":   categories,
+		"AllMeals":    meals,
+		"LoggedInUser": loggedInUser,
+	})
 
 }
+
+func PlaceMeal(c *gin.Context){
+	var meal models.Meal
+	var mealData struct{
+		Name      string `json:"name"`
+		Img       string `json:"url"`
+		Category  string `json:"category"` 
+		Price     int    `json:"price"`
+	}
+
+	if err := c.ShouldBindJSON(&mealData); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	result := models.DB.Where("str_meal = ? AND str_category = ?", mealData.Name, mealData.Category).First(&meal)
+	if result.Error != nil && result.Error != gorm.ErrRecordNotFound {
+		c.JSON(http.StatusOK, gin.H{"message": "Meal already exists"})
+	} 
+	if result.Error == gorm.ErrRecordNotFound {
+		i :=  strconv.Itoa(getID())
+		meal = models.Meal{
+	        IDMeal:         i,
+			StrMeal:       mealData.Name,
+			StrCategory:   mealData.Category,
+			StrMealThumb:  mealData.Img,
+			Price:         mealData.Price,
+		}
+		if err := models.DB.Create(&meal).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "could not create meal"})
+			return
+		}
+		allMeals = append(allMeals, meal)
+		c.JSON(http.StatusOK, gin.H{"message": "Meal added successfully", "meal": meal})
+	}
+}
+
+var random *rand.Rand
+const maxID = 52776
+func init() {
+    random = rand.New(rand.NewSource(time.Now().UnixNano()))
+}
+
+func getID() int {
+    existingIDs := make(map[int]bool)
+
+    for _, meal := range allMeals {
+        
+        id, err := strconv.Atoi(meal.IDMeal)
+        if err == nil {
+            existingIDs[id] = true
+        }
+    }
+
+   
+    var id int
+    for {
+        id = random.Intn(maxID) + 1 
+        if !existingIDs[id] {
+            break 
+        }
+    }
+
+    return id
+}
+
