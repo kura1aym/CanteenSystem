@@ -120,22 +120,27 @@ func Logout(c *gin.Context) {
 }
 
 func HomePage(c *gin.Context) {
-	_, err := GetMenuData()
-	if err != nil {
-		c.String(http.StatusInternalServerError, "Error fetching menu data: %v", err)
-		return
+	category := c.Query("category")
+  	if category != "" {
+    	OneCategory(c)
+  	}else {
+		_, err := GetMenuData()
+		if err != nil {
+			c.String(http.StatusInternalServerError, "Error fetching menu data: %v", err)
+			return
+		}
+		var mealsLocal []models.Meal
+
+		err = models.DB.Find(&mealsLocal).Error
+		if err != nil {
+			c.String(http.StatusInternalServerError, "Error fetching meals data: %v", err)
+		}
+
+		c.HTML(http.StatusOK, "home.html", gin.H{
+			"AllMeals":    mealsLocal,
+			"LoggedInUser": loggedInUser,
+		})
 	}
-	var mealsLocal []models.Meal
-
-	err = models.DB.Find(&mealsLocal).Error
-    if err != nil {
-		c.String(http.StatusInternalServerError, "Error fetching meals data: %v", err)
-    }
-
-	c.HTML(http.StatusOK, "home.html", gin.H{
-		"AllMeals":    mealsLocal,
-		"LoggedInUser": loggedInUser,
-	})
 }
 
 type MealsResponse struct {
@@ -587,3 +592,13 @@ func getID() int {
     return id
 }
 
+func OneCategory(c *gin.Context) {
+	category := c.Query("category")
+	var categoryResult []models.Meal
+	category = strings.ToLower(category)
+	models.DB.Where("LOWER(str_category) LIKE ?", "%"+category+"%").Find(&categoryResult)
+	c.HTML(http.StatusOK, "home.html", gin.H{
+		"MenuItems": categoryResult,
+		"Username":     loggedInUser.Username,
+	})
+}	
