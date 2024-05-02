@@ -101,7 +101,10 @@
         <div class="left-items">
             <a href="/categories"><i class="fas fa-bars"></i> Categories</a>
             <a href="/search"><i class="fas fa-search"></i> Search</a>
-            <label><i class="fas fa-user"></i> {{ .LoggedInUser.Username }}</label>
+            <a href="/order"><i class="fas fa-user"></i> {{ .LoggedInUser.Username }}</a>
+            {{ if eq .LoggedInUser.Role "Admin" }}
+            <a href="/admin"><i class="fa fa-plus"></i> Add Meal</a>
+            {{end}}
         </div>
         <div class="center-item home-button">
             <a href="/home"><img src="/assets/logo-white.png"
