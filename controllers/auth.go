@@ -193,8 +193,24 @@ func assignPrice() []models.Meal {
 	for i := range allMeals {
 		var existingMeal models.Meal
 		err := models.DB.Where("id_meal = ?", allMeals[i].IDMeal).First(&existingMeal).Error
+
 		if err == nil {
-			allMeals[i].Price = existingMeal.Price
+			if existingMeal.Price == 0 {
+				price, err := generateRandomPrice(1500, 3500)
+				if err != nil {
+					fmt.Println("Error generating price:", err)
+					continue
+				}
+				allMeals[i].Price = price
+				existingMeal.Price = price
+
+				if err := models.DB.Save(&existingMeal).Error; err != nil {
+					fmt.Println("Error saving meal to database:", err)
+					continue
+				}
+			} else {
+				allMeals[i].Price = existingMeal.Price
+			}
 		} else if errors.Is(err, gorm.ErrRecordNotFound) {
 			price, err := generateRandomPrice(1500, 3500)
 			if err != nil {
@@ -203,14 +219,13 @@ func assignPrice() []models.Meal {
 			}
 			allMeals[i].Price = price
 
-			allMeals[i].Price = price
 			existingMeal = allMeals[i]
 			if err := models.DB.Create(&existingMeal).Error; err != nil {
 				fmt.Println("Error saving meal to database:", err)
 				continue
 			}
 		} else {
-			fmt.Println("Error querying database:", err)
+			fmt.Println("Error querying database", err)
 			continue
 		}
 	}
@@ -303,7 +318,6 @@ func GetCartItems(userID uint) ([]models.CartItem, error) {
 }
 
 func AddToCart(c *gin.Context) {
-	// Структура для хранения элементов корзины, полученных из запроса
 	var cartItems []models.CartItem
 	if err := c.ShouldBindJSON(&cartItems); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -454,18 +468,14 @@ func PlaceOrder(c *gin.Context) {
 }
 
 func ClearCart(c *gin.Context) error {
-	// Получаем идентификатор пользователя из текущей сессии или токена
 	userID := loggedInUser.ID
 
-	// Удаляем все товары из корзины пользователя по его идентификатору
 	err := models.DB.Where("user_id = ?", userID).Delete(&models.CartItem{}).Error
 	if err != nil {
-		// Если возникает ошибка при удалении элементов из базы данных, возвращаем сообщение об ошибке
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось очистить корзину"})
 		return nil
 	}
 
-	// Если корзина успешно очищена, возвращаем положительный ответ
 	c.JSON(http.StatusOK, gin.H{"success": "Корзина успешно очищена"})
 	return nil
 }
