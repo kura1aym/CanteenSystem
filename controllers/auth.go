@@ -120,13 +120,20 @@ func Logout(c *gin.Context) {
 }
 
 func HomePage(c *gin.Context) {
-	meals, err := GetMenuData()
+	_, err := GetMenuData()
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Error fetching menu data: %v", err)
 		return
 	}
+	var mealsLocal []models.Meal
+
+	err = models.DB.Find(&mealsLocal).Error
+    if err != nil {
+		c.String(http.StatusInternalServerError, "Error fetching meals data: %v", err)
+    }
+
 	c.HTML(http.StatusOK, "home.html", gin.H{
-		"MenuItems":    meals,
+		"AllMeals":    mealsLocal,
 		"LoggedInUser": loggedInUser,
 	})
 }
