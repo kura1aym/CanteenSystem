@@ -190,58 +190,92 @@
     </div>
 
 <div id="cartMainDiv">
+    {{if eq .Edit false}}
+        <div id="display">
+            {{range .AllMeals}}
+            <div>
+                <img src="{{.StrMealThumb}}" alt="{{.StrMeal}}" width="120" height="120">
+                <h5 style="font-size: 16px;">{{.StrMeal}}</h5>
+                <p style="color: gray;font-size: 14px;margin-top: 5px; width: 120;">{{.StrCategory}}</p>
+                <p class="menu-item-price">{{.Price}}₸</p>
+                <div style="display: flex; width: 140px;">
+                    <button class="btn btn-edit" data-edit-id="{{.IDMeal }}"><i class="fa fa-edit"></i></button>
+                    <button class="btn btn-outline-danger" data-remove-id="{{.IDMeal }}"><i class="fa fa-trash"></i></button>
+                </div>
+            </div>
+            {{end}}
+        </div>
+   
+        <div id="boxSize">
+            <div class="card ">
+                <div class="card-header fs-3 fw-bold text-center">
+                    Add Meal
+                </div>
+                <div class="card-body p-0">
+                    <form id="form">
+                        <div class="p-4 mt-2">
+                            <input type="hidden" id="product_id" value="0">
+                            <input id="name" class="form-control mb-3" type="text" placeholder="Name">
+                            <input id="url" class="form-control mb-3" type="text" placeholder="Image url">
+                            <input id="price" class="form-control mb-3" type="number" placeholder="Price">
 
-    <!-- Display Dishes -->
-    <div id="display">
-        {{range .AllMeals}}
-        <div>
-            <img src="{{.StrMealThumb}}" alt="{{.StrMeal}}" width="120" height="120">
-            <h5 style="font-size: 16px;">{{.StrMeal}}</h5>
-            <p style="color: gray;font-size: 14px;margin-top: 5px; width: 120;">{{.StrCategory}}</p>
-            <p class="menu-item-price">{{.Price}}₸</p>
-            <div style="display: flex; width: 140px;">
-                <button class="btn"><i class="fa fa-edit"></i></button>
-                <button class="btn btn-outline-danger" data-product-id="{{.IDMeal }}"><i class="fa fa-trash"></i></button>
+                            <div id="categories">
+                                {{range .Categories}}
+                                <div class="form-check">
+                                    <input class="form-check-input-1" type="radio" name="flexRadioDefault" id="{{ .StrCategory }}" value="{{ .StrCategory }}">
+                                    <label class="form-check-label" for="{{ .StrCategory }}">
+                                        {{ .StrCategory }}
+                                    </label>
+                                </div>
+                                {{end}}
+                            </div>
+                            <p></p>
+                            <div class="d-grid">
+                                <input type="submit" class="btn btn-success" value="Add Meal" />
+                            </div>
+                        </div>
+                    </form>
+
+                </div>
             </div>
         </div>
-        {{end}}
-    </div>
+    {{else}}
+        <div id="boxSize">
+            <div class="card ">
+                <div class="card-header fs-3 fw-bold text-center">
+                    Edit Meal
+                </div>
+                <div class="card-body p-0">
 
-
-
-    <div id="boxSize">
-        <div class="card ">
-            <div class="card-header fs-3 fw-bold text-center">
-                Add Meal
-            </div>
-            <div class="card-body p-0">
-
-                <form id="form">
-                    <div class="p-4 mt-2">
-                        <input id="name" class="form-control mb-3" type="text" placeholder="Name">
-                        <input id="url" class="form-control mb-3" type="text" placeholder="Image url">
-                        <input id="price" class="form-control mb-3" type="number" placeholder="Price">
-
+                    <form id="form">
+                        {{range .AllMeals}}
+                        <input id="product_id" value="{{.IDMeal}}" type="hidden">
+                        <input id="name" class="form-control mb-3" type="text" placeholder="Name" value="{{.StrMeal}}">
+                        <input id="url" class="form-control mb-3" type="text" placeholder="Image url" value="{{.StrMealThumb}}">
+                        <input id="price" class="form-control mb-3" type="number" placeholder="Price" value="{{.Price}}">
+                        {{end}}
                         <div id="categories">
                             {{range .Categories}}
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="flexRadioDefault" id="{{ .StrCategory }}" value="{{ .StrCategory }}">
-                                <label class="form-check-label" for="{{ .StrCategory }}">
-                                    {{ .StrCategory }}
-                                </label>
-                            </div>
+                                <div class="form-check">
+                                    <input class="form-check-input-2" type="radio" name="flexRadioDefault" id="{{ .StrCategory }}" value="{{ .StrCategory }}">
+                                    <label class="form-check-label" for="{{ .StrCategory }}">
+                                        {{ .StrCategory }}
+                                    </label>
+                                </div>
                             {{end}}
                         </div>
+                    
                         <p></p>
                         <div class="d-grid">
-                            <input type="submit" class="btn btn-success" value="Add Meal" />
+                            <input type="submit" class="btn btn-success-edit" value="Edit Meal" />
                         </div>
-                    </div>
-                </form>
+                    </form>
+                    
 
+                </div>
             </div>
         </div>
-    </div>
+    {{end}}
 
 </div>
 
@@ -250,14 +284,18 @@
 
     var SelectedValue = '';
     document.addEventListener("DOMContentLoaded", function () {
-        // Get all form-check inputs
-        var formCheckInputs = document.querySelectorAll('.form-check-input');
-
-        formCheckInputs.forEach(function (input) {
+        var formCheckInputs1 = document.querySelectorAll('.form-check-input-1');
+        var formCheckInputs2 = document.querySelectorAll('.form-check-input-2');
+        formCheckInputs1.forEach(function (input) {
             input.addEventListener('change', function () {
-                // Check if the input is checked
                 if (this.checked) {
-                    // Retrieve the selected value by input value
+                    selectedValue = this.value;
+                }
+            });
+        });
+        formCheckInputs2.forEach(function (input) {
+            input.addEventListener('change', function () {
+                if (this.checked) {
                     selectedValue = this.value;
                   
                 }
@@ -293,7 +331,7 @@
 
         removeButtons.forEach(function(button) {
             button.addEventListener('click', function() {
-                var mealID = button.getAttribute('data-product-id');
+                var mealID = button.getAttribute('data-remove-id');
 
                 console.log('Removing item with meal ID:', mealID);
                 alert('Are you sure that you need to remove?');
@@ -319,31 +357,31 @@
         });
     });
 
-    // Обработчик для отправки формы заказа
-    document.getElementById('form').addEventListener('submit', function(event) {
-        event.preventDefault(); // Остановить стандартное поведение формы
+    document.addEventListener('DOMContentLoaded', function() {
+        var removeButtons = document.querySelectorAll('.btn.btn-success');
 
-        // Получить данные формы
+        removeButtons.forEach(function(button) {
+        button.addEventListener('click', function() {
+
         const name = document.getElementById('name').value;
         const url = document.getElementById('url').value;
         const price = parseInt(document.getElementById('price').value); 
         const category = selectedValue;
-
+        
         if (url.length > 255) {
         alert('Image URL is too long. Please enter a shorter URL.');
-        return; // Stop form submission
+        return; 
         }
 
-        // Подготовить данные заказа в виде JSON
         const mealData = {
             name: name,
             url: url,
             category: category,
             street: category,
-            price: price
+            price: price,
+            
         };
 
-        // Отправить данные заказа на сервер
         fetch('/admin/add', {
             method: 'POST',
             headers: {
@@ -360,6 +398,63 @@
                 console.error('Error:', error);
                 alert('Failed to add meal. Please try again.');
             });
+        });
+    });
+});
+    document.addEventListener('DOMContentLoaded', function() {
+        var removeButtons = document.querySelectorAll('.btn.btn-edit');
+
+        removeButtons.forEach(function(button) {
+            button.addEventListener('click', function() {
+                var mealID = button.getAttribute('data-edit-id');
+                window.location.href = `/admin?mealID=${encodeURIComponent(mealID)}`;
+            });
+        });
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+        var removeButtons = document.querySelectorAll('.btn.btn-success-edit');
+
+        removeButtons.forEach(function(button) {
+        button.addEventListener('click', function() {
+        
+        const name = document.getElementById('name').value;
+        const url = document.getElementById('url').value;
+        const price = parseInt(document.getElementById('price').value); 
+        const category = selectedValue;
+        const product_id = document.getElementById('product_id').value;
+        if (url.length > 255) {
+        alert('Image URL is too long. Please enter a shorter URL.');
+        return; 
+        }
+
+        const mealData = {
+            name: name,
+            url: url,
+            category: category,
+            street: category,
+            price: price,
+            product_id: product_id,
+        };
+        
+        fetch('/admin/update', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(mealData)
+        })
+            .then(response => response.json())
+            .then(data => {
+                    alert('Meal edited successfully!');
+                    window.location.href = '/admin';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to edit meal. Please try again.');
+            });
+            });
+        });
     });
 
 </script>
