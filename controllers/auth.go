@@ -526,18 +526,23 @@ func Admin(c *gin.Context){
 			"LoggedInUser": loggedInUser,
 		})
 	}else{
+		var meal models.Meal
 		var edit bool = true
-		err := models.DB.Where("id_meal = ?", id).First(&meals).Error
+		err := models.DB.Where("id_meal = ?", id).First(&meal).Error
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "meal item not found"})
 			return
 		}
-		
+		if err := models.DB.Where("str_category = ?", meal.StrCategory).Delete(&categories).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "could not retrive category"})
+			return
+		}
 		c.HTML(http.StatusOK, "admin.html", gin.H{
 			"Edit": edit,
 			"Categories":   categories,
-			"AllMeals":    meals,
+			"AllMeals":    meal,
 			"LoggedInUser": loggedInUser,
+			"Category": meal.StrCategory,
 		})
 	}
 
