@@ -255,12 +255,7 @@ func GetCategories() ([]models.Category, error) {
 	}
 	var categories []models.Category
 	for _, cat := range categoriesResp.Categories {
-		if cat.IdCategory == "2" || cat.IdCategory == "3" || cat.IdCategory == "13" {
-			categories = append(categories, cat)
-		}
-	}
-	for _, cat := range categories {
-		fmt.Println(cat)
+		categories = append(categories, cat)
 	}
 
 	return categories, nil
@@ -510,23 +505,41 @@ func SearchResult(searchTerm string) []models.Meal {
 }
 
 func Admin(c *gin.Context){
+	id := c.Query("mealID")
 	categories, err := GetCategories()
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Error fetching menu data: %v", err)
 		return
 	}
 	var meals []models.Meal
-
-	err = models.DB.Find(&meals).Error
-    if err != nil {
-		c.String(http.StatusInternalServerError, "Error fetching meals data: %v", err)
-    }
-
-	c.HTML(http.StatusOK, "admin.html", gin.H{
-		"Categories":   categories,
-		"AllMeals":    meals,
-		"LoggedInUser": loggedInUser,
-	})
+	
+	if id ==""{
+		var edit bool = false
+		err = models.DB.Find(&meals).Error
+		if err != nil {
+			c.String(http.StatusInternalServerError, "Error fetching meals data: %v", err)
+		}
+		c.HTML(http.StatusOK, "admin.html", gin.H{
+			"Edit": edit,
+			"Categories":   categories,
+			"AllMeals":    meals,
+			"LoggedInUser": loggedInUser,
+		})
+	}else{
+		var edit bool = true
+		err := models.DB.Where("id_meal = ?", id).First(&meals).Error
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "meal item not found"})
+			return
+		}
+		
+		c.HTML(http.StatusOK, "admin.html", gin.H{
+			"Edit": edit,
+			"Categories":   categories,
+			"AllMeals":    meals,
+			"LoggedInUser": loggedInUser,
+		})
+	}
 
 }
 
@@ -628,3 +641,39 @@ func RemoveMeal(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"success": "meal item removed"})
 }
+
+
+func UpdateMeal(c *gin.Context){
+	var meal models.Meal
+	var mealData struct{
+		Name      string `json:"name"`
+		Img       string `json:"url"`
+		Category  string `json:"category"` 
+		Price     int    `json:"price"`
+		ID        string `json:"product_id"`       
+	}
+
+	if err := c.ShouldBindJSON(&mealData); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	result := models.DB.Where("id_meal = ?", mealData.ID).First(&meal)
+	if result.Error != nil {
+		c.JSON(http.StatusOK, gin.H{"message": "Meal doesn't exists"})
+	} 
+	meal = models.Meal{
+		StrMeal:       mealData.Name,
+		StrCategory:   mealData.Category,
+		StrMealThumb:  mealData.Img,
+		Price:         mealData.Price,
+	}
+	if err := models.DB.Model(&models.Meal{}).Where("id_meal = ?", mealData.ID).Updates(map[string]interface{}{"str_meal": mealData.Name, "str_category": mealData.Category, "str_meal_thumb":mealData.Img, "price": mealData.Price}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not update meal"})
+		return
+	}
+	if err := models.DB.Model(&allMeals).Where("id_meal = ?", mealData.ID).Updates(map[string]interface{}{"str_meal": mealData.Name, "str_category": mealData.Category, "str_meal_thumb":mealData.Img, "price": mealData.Price}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not update allMeals"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Meal added successfully", "meal": meal})
+	}
