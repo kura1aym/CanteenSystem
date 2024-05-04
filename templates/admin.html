@@ -248,21 +248,23 @@
                 <div class="card-body p-0">
 
                     <form id="form">
-                        {{range .AllMeals}}
-                        <input id="product_id" value="{{.IDMeal}}" type="hidden">
-                        <input id="name" class="form-control mb-3" type="text" placeholder="Name" value="{{.StrMeal}}">
-                        <input id="url" class="form-control mb-3" type="text" placeholder="Image url" value="{{.StrMealThumb}}">
-                        <input id="price" class="form-control mb-3" type="number" placeholder="Price" value="{{.Price}}">
-                        {{end}}
+                        <input id="product_id" value="{{ .AllMeals.IDMeal}}" type="hidden">
+                        <input id="name" class="form-control mb-3" type="text" placeholder="Name" value="{{ .AllMeals.StrMeal}}">
+                        <input id="url" class="form-control mb-3" type="text" placeholder="Image url" value="{{.AllMeals.StrMealThumb}}">
+                        <input id="price" class="form-control mb-3" type="number" placeholder="Price" value="{{.AllMeals.Price}}">
                         <div id="categories">
-                            {{range .Categories}}
-                                <div class="form-check">
-                                    <input class="form-check-input-2" type="radio" name="flexRadioDefault" id="{{ .StrCategory }}" value="{{ .StrCategory }}">
-                                    <label class="form-check-label" for="{{ .StrCategory }}">
-                                        {{ .StrCategory }}
-                                    </label>
-                                </div>
-                            {{end}}
+                            <div class="form-check">
+                                <input class="form-check-input-3" type="radio" name="flexRadioDefault"  id="{{ .Category }}" value="{{ .Category }}" checked>
+                                <label class="form-check-label" for="{{ .Category }}">
+                                    {{ .Category }}
+                                </label>
+                                {{range .Categories}}
+                                        <input class="form-check-input-2" type="radio"  name="flexRadioDefault" id="{{ .StrCategory }}" value="{{ .StrCategory }}">
+                                        <label class="form-check-label" for="{{ .StrCategory }}">
+                                            {{ .StrCategory }}
+                                        </label> 
+                                {{end}}
+                        </div>
                         </div>
                     
                         <p></p>
@@ -286,6 +288,7 @@
     document.addEventListener("DOMContentLoaded", function () {
         var formCheckInputs1 = document.querySelectorAll('.form-check-input-1');
         var formCheckInputs2 = document.querySelectorAll('.form-check-input-2');
+        var formCheckInputs3 = document.querySelectorAll('.form-check-input-3');
         formCheckInputs1.forEach(function (input) {
             input.addEventListener('change', function () {
                 if (this.checked) {
@@ -296,8 +299,16 @@
         formCheckInputs2.forEach(function (input) {
             input.addEventListener('change', function () {
                 if (this.checked) {
-                    selectedValue = this.value;
-                  
+                    selectedValue = this.value; 
+                    formCheckInputs3.checked =false;
+                }
+            });
+        });
+        formCheckInputs3.forEach(function (input) {
+            input.addEventListener('change', function () {
+                if (this.checked) {
+                    selectedValue = this.value; 
+                    formCheckInputs2.checked =false;
                 }
             });
         });
@@ -367,6 +378,7 @@
         const url = document.getElementById('url').value;
         const price = parseInt(document.getElementById('price').value); 
         const category = selectedValue;
+        selectedValue=""
         
         if (url.length > 255) {
         alert('Image URL is too long. Please enter a shorter URL.');
@@ -422,6 +434,7 @@
         const url = document.getElementById('url').value;
         const price = parseInt(document.getElementById('price').value); 
         const category = selectedValue;
+        selectedValue=""
         const product_id = document.getElementById('product_id').value;
         if (url.length > 255) {
         alert('Image URL is too long. Please enter a shorter URL.');
