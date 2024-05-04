@@ -2,6 +2,7 @@ package routes
 
 import (
 	"canteenSystem/controllers"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -17,6 +18,8 @@ func AuthRoutes(router *gin.Engine) {
 	router.POST("/admin/add", controllers.PlaceMeal)
 
 	router.POST("/admin/remove", controllers.RemoveMeal)
+
+	router.POST("/admin/update", controllers.UpdateMeal)
 
 	router.GET("/home", controllers.HomePage)
 
