@@ -107,6 +107,9 @@
             <a href="/categories"><i class="fas fa-bars"></i> Categories</a>
             <a href="/search"><i class="fas fa-search"></i> Search</a>
             <label><i class="fas fa-user"></i> {{ .Username }}</label>
+            {{ if eq .LoggedInUser.Role "Admin" }}
+            <a href="/admin"><i class="fa fa-plus"></i> Add Meal</a>
+            {{end}}
         </div>
         <div class="center-item home-button">
             <a href="/home"><img src="/assets/logo-white.png"
