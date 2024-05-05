@@ -121,9 +121,9 @@ func Logout(c *gin.Context) {
 
 func HomePage(c *gin.Context) {
 	category := c.Query("category")
-  	if category != "" {
-    	OneCategory(c)
-  	}else {
+	if category != "" {
+		OneCategory(c)
+	} else {
 		_, err := GetMenuData()
 		if err != nil {
 			c.String(http.StatusInternalServerError, "Error fetching menu data: %v", err)
@@ -137,7 +137,7 @@ func HomePage(c *gin.Context) {
 		}
 
 		c.HTML(http.StatusOK, "home.html", gin.H{
-			"AllMeals":    mealsLocal,
+			"AllMeals":     mealsLocal,
 			"LoggedInUser": loggedInUser,
 		})
 	}
@@ -231,7 +231,7 @@ func Categories(c *gin.Context) {
 	}
 	c.HTML(http.StatusOK, "categories.html", gin.H{
 		"Categories": categories,
-		"Username":   loggedInUser.Username,
+		"LoggedInUser": loggedInUser,
 	})
 }
 
@@ -484,12 +484,12 @@ func Search(c *gin.Context) {
 	if searchTerm == "" {
 		c.HTML(http.StatusOK, "search.html", gin.H{
 			"SearchResult": nil,
-			"Username":     loggedInUser.Username,
+			"LoggedInUser": loggedInUser,
 		})
 	} else {
 		c.HTML(http.StatusOK, "search.html", gin.H{
 			"SearchResult": searchResult,
-			"Username":     loggedInUser.Username,
+			"LoggedInUser": loggedInUser,
 		})
 	}
 }
@@ -504,7 +504,7 @@ func SearchResult(searchTerm string) []models.Meal {
 	return searchResult
 }
 
-func Admin(c *gin.Context){
+func Admin(c *gin.Context) {
 	id := c.Query("mealID")
 	categories, err := GetCategories()
 	if err != nil {
@@ -512,20 +512,20 @@ func Admin(c *gin.Context){
 		return
 	}
 	var meals []models.Meal
-	
-	if id ==""{
+
+	if id == "" {
 		var edit bool = false
 		err = models.DB.Find(&meals).Error
 		if err != nil {
 			c.String(http.StatusInternalServerError, "Error fetching meals data: %v", err)
 		}
 		c.HTML(http.StatusOK, "admin.html", gin.H{
-			"Edit": edit,
+			"Edit":         edit,
 			"Categories":   categories,
-			"AllMeals":    meals,
+			"AllMeals":     meals,
 			"LoggedInUser": loggedInUser,
 		})
-	}else{
+	} else {
 		var meal models.Meal
 		var edit bool = true
 		err := models.DB.Where("id_meal = ?", id).First(&meal).Error
@@ -538,23 +538,23 @@ func Admin(c *gin.Context){
 			return
 		}
 		c.HTML(http.StatusOK, "admin.html", gin.H{
-			"Edit": edit,
+			"Edit":         edit,
 			"Categories":   categories,
-			"AllMeals":    meal,
+			"AllMeals":     meal,
 			"LoggedInUser": loggedInUser,
-			"Category": meal.StrCategory,
+			"Category":     meal.StrCategory,
 		})
 	}
 
 }
 
-func PlaceMeal(c *gin.Context){
+func PlaceMeal(c *gin.Context) {
 	var meal models.Meal
-	var mealData struct{
-		Name      string `json:"name"`
-		Img       string `json:"url"`
-		Category  string `json:"category"` 
-		Price     int    `json:"price"`
+	var mealData struct {
+		Name     string `json:"name"`
+		Img      string `json:"url"`
+		Category string `json:"category"`
+		Price    int    `json:"price"`
 	}
 
 	if err := c.ShouldBindJSON(&mealData); err != nil {
@@ -564,15 +564,15 @@ func PlaceMeal(c *gin.Context){
 	result := models.DB.Where("str_meal = ? AND str_category = ?", mealData.Name, mealData.Category).First(&meal)
 	if result.Error != nil && result.Error != gorm.ErrRecordNotFound {
 		c.JSON(http.StatusOK, gin.H{"message": "Meal already exists"})
-	} 
+	}
 	if result.Error == gorm.ErrRecordNotFound {
-		i :=  strconv.Itoa(getID())
+		i := strconv.Itoa(getID())
 		meal = models.Meal{
-	        IDMeal:         i,
-			StrMeal:       mealData.Name,
-			StrCategory:   mealData.Category,
-			StrMealThumb:  mealData.Img,
-			Price:         mealData.Price,
+			IDMeal:       i,
+			StrMeal:      mealData.Name,
+			StrCategory:  mealData.Category,
+			StrMealThumb: mealData.Img,
+			Price:        mealData.Price,
 		}
 		if err := models.DB.Create(&meal).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "could not create meal"})
@@ -584,32 +584,33 @@ func PlaceMeal(c *gin.Context){
 }
 
 var random *rand.Rand
+
 const maxID = 52776
+
 func init() {
-    random = rand.New(rand.NewSource(time.Now().UnixNano()))
+	random = rand.New(rand.NewSource(time.Now().UnixNano()))
 }
 
 func getID() int {
-    existingIDs := make(map[int]bool)
+	existingIDs := make(map[int]bool)
 
-    for _, meal := range allMeals {
-        
-        id, err := strconv.Atoi(meal.IDMeal)
-        if err == nil {
-            existingIDs[id] = true
-        }
-    }
+	for _, meal := range allMeals {
 
-   
-    var id int
-    for {
-        id = random.Intn(maxID) + 1 
-        if !existingIDs[id] {
-            break 
-        }
-    }
+		id, err := strconv.Atoi(meal.IDMeal)
+		if err == nil {
+			existingIDs[id] = true
+		}
+	}
 
-    return id
+	var id int
+	for {
+		id = random.Intn(maxID) + 1
+		if !existingIDs[id] {
+			break
+		}
+	}
+
+	return id
 }
 
 func OneCategory(c *gin.Context) {
@@ -619,7 +620,7 @@ func OneCategory(c *gin.Context) {
 	models.DB.Where("LOWER(str_category) LIKE ?", "%"+category+"%").Find(&categoryResult)
 	c.HTML(http.StatusOK, "home.html", gin.H{
 		"AllMeals": categoryResult,
-		"Username":     loggedInUser.Username,
+		"LoggedInUser": loggedInUser,
 	})
 }
 
@@ -647,15 +648,14 @@ func RemoveMeal(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": "meal item removed"})
 }
 
-
-func UpdateMeal(c *gin.Context){
+func UpdateMeal(c *gin.Context) {
 	var meal models.Meal
-	var mealData struct{
-		Name      string `json:"name"`
-		Img       string `json:"url"`
-		Category  string `json:"category"` 
-		Price     int    `json:"price"`
-		ID        string `json:"product_id"`       
+	var mealData struct {
+		Name     string `json:"name"`
+		Img      string `json:"url"`
+		Category string `json:"category"`
+		Price    int    `json:"price"`
+		ID       string `json:"product_id"`
 	}
 
 	if err := c.ShouldBindJSON(&mealData); err != nil {
@@ -665,20 +665,20 @@ func UpdateMeal(c *gin.Context){
 	result := models.DB.Where("id_meal = ?", mealData.ID).First(&meal)
 	if result.Error != nil {
 		c.JSON(http.StatusOK, gin.H{"message": "Meal doesn't exists"})
-	} 
-	meal = models.Meal{
-		StrMeal:       mealData.Name,
-		StrCategory:   mealData.Category,
-		StrMealThumb:  mealData.Img,
-		Price:         mealData.Price,
 	}
-	if err := models.DB.Model(&models.Meal{}).Where("id_meal = ?", mealData.ID).Updates(map[string]interface{}{"str_meal": mealData.Name, "str_category": mealData.Category, "str_meal_thumb":mealData.Img, "price": mealData.Price}).Error; err != nil {
+	meal = models.Meal{
+		StrMeal:      mealData.Name,
+		StrCategory:  mealData.Category,
+		StrMealThumb: mealData.Img,
+		Price:        mealData.Price,
+	}
+	if err := models.DB.Model(&models.Meal{}).Where("id_meal = ?", mealData.ID).Updates(map[string]interface{}{"str_meal": mealData.Name, "str_category": mealData.Category, "str_meal_thumb": mealData.Img, "price": mealData.Price}).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not update meal"})
 		return
 	}
-	if err := models.DB.Model(&allMeals).Where("id_meal = ?", mealData.ID).Updates(map[string]interface{}{"str_meal": mealData.Name, "str_category": mealData.Category, "str_meal_thumb":mealData.Img, "price": mealData.Price}).Error; err != nil {
+	if err := models.DB.Model(&allMeals).Where("id_meal = ?", mealData.ID).Updates(map[string]interface{}{"str_meal": mealData.Name, "str_category": mealData.Category, "str_meal_thumb": mealData.Img, "price": mealData.Price}).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not update allMeals"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Meal added successfully", "meal": meal})
-	}
+}
